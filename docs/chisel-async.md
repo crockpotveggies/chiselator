@@ -4,6 +4,8 @@ Draft, October 5, 2026. **chisel-async is the first product to build.** It is an
 
 This document extends [async model specification 03](specs/03-async-model-contracts.md). It defines library scope and build order; the [five specifications](specs/README.md) continue to own simulator semantics and interfaces. The first complete chip example remains the minimal async MCU. Library components and example stages are earlier deliverables, not substitutes for that application.
 
+The [chisel-async implementation plan](chisel-async-implementation-plan.md) turns this architecture into a source-grounded comparison with ASYNC-Chisel, a current Chisel/firtool qualification baseline, concrete package/API decisions and work packages CA-01–11 with LIB-01–06 acceptance gates. It remains a plan for the future dedicated library repository, not an implementation in Chiselator.
+
 ## Product boundaries and reuse
 
 Use the artifact name `chisel-async` and Scala namespace `chiselasync`. Develop it in its own dedicated repository, which the project owner will add when needed. That repository owns library source, bundled SV views, build configuration, independent tests, documentation and releases. It must not depend on Rust, the Chiselator executable, ACT, a GPU, a PDK or Yosys. Chiselator consumes pinned artifacts/contract fixtures rather than maintaining a second library source tree. Repository URL and package publication coordinates are assigned when the repository is added; these names do not claim that a package namespace has been reserved.
