@@ -1,8 +1,8 @@
 # chisel-async implementation plan
 
-Draft, October 5, 2026. Build an independently designed Apache-2.0 library that lets Chisel users compose asynchronous hardware, emit portable SystemVerilog, and verify it before Chiselator exists. This plan turns the [library architecture](chisel-async.md) into implementation tasks, API decisions and release gates. All proposed APIs and tests remain unimplemented.
+Planning baseline, October 5, 2026. Build an independently designed Apache-2.0 library that lets Chisel users compose asynchronous hardware, emit portable SystemVerilog, and verify it before Chiselator exists. This plan turns the [library architecture](chisel-async.md) into implementation tasks, API decisions and release gates. [BiscutLabs/chisel-async](https://github.com/BiscutLabs/chisel-async) now implements typed four-phase channels, behavioral state/delay primitives, a checked compiler sidecar, bounded functional/digital timing verification and clean consumer checks. The library's roadmap and qualification documents own current progress; structural handshake control, other native-platform evidence and the complete L0 gate remain pending.
 
-The delivery order remains **chisel-async → RISCay-MCU → Chiselator → physical chip implementation**. The dedicated chisel-async repository will own this implementation when the project owner adds it. Keep this document here until that repository exists; then move implementation ownership there and retain a versioned link. No PDK, synthesis tool, Yosys, ACT, GPU or physical chip is required for the first three steps. Physical bindings and physical-tool decisions remain in the [step 4 backlog](chip-build-plan.md).
+The delivery order remains **chisel-async → RISCay-MCU → Chiselator → physical chip implementation**. The dedicated chisel-async repository now owns implementation and references the versioned original of this plan. Retain this document as the stack-level planning baseline rather than duplicate library status here. No PDK, synthesis tool, Yosys, ACT, GPU or physical chip is required for the first three steps. Physical bindings and physical-tool decisions remain in the [step 4 backlog](chip-build-plan.md).
 
 ## Lessons from the original library
 
@@ -50,7 +50,7 @@ No custom Chisel fork, new HDL or replacement compiler IR is planned. The manife
 
 ## Repository and package layout
 
-Use one publishable core artifact initially. Keep verification helpers separate so a hardware consumer does not acquire Python or simulator dependencies merely by importing the library. The following paths are proposed for the future dedicated repository:
+Use one publishable core artifact initially. Keep verification helpers separate so a hardware consumer does not acquire Python or simulator dependencies merely by importing the library. The following is the target layout; current implemented paths and remaining work are tracked in the dedicated repository:
 
 ```text
 build.sbt                         project/build.properties
@@ -254,4 +254,4 @@ The first complete *chip* example remains RISCay-MCU. Library examples are small
 | QDI or arbitration scope exceeds available expertise | CA-02 contract review, then CA-07/08 cell-level demonstrations. | Obtain specialist review, expose remaining unsupported scope and re-estimate; never label a stub complete. |
 | API is pleasant locally but unusable downstream | CA-05 clean consumer, repeated through CA-10. | Test public APIs/resources independently of the source checkout and document migration. |
 
-Do not attach a firm delivery date before L0. Re-estimate after native tools, export preservation and the first independently verified buffer work; QDI and reset/concurrency review are likely the largest uncertainties. No additional product decision is needed to start these tasks when the dedicated repository is available. Physical technology and implementation choices remain explicitly deferred to step 4.
+Do not attach a firm delivery date before L0. Re-estimate after native tools, export preservation and the first independently verified buffer work; QDI and reset/concurrency review are likely the largest uncertainties. Continue these tasks in the dedicated repository under its current qualification gates. Physical technology and implementation choices remain explicitly deferred to step 4.
