@@ -1,6 +1,6 @@
 # Chiselator software architecture
 
-Draft implementation blueprint, updated October 5, 2026. This document makes the [simulator proposal](simulator-proposal.md) concrete. It specifies proposed components and contracts; the APIs, file layout, and command examples below are not implemented. Project-authored code uses Apache-2.0.
+Draft implementation blueprint. This document makes the [simulator proposal](simulator-proposal.md) concrete. It specifies proposed components and contracts; the APIs, file layout, and command examples below are not implemented. Project-authored code uses Apache-2.0.
 
 The [researched MVP feature list](mvp-feature-list.md) defines a proposed first-team release cut, including a thin MCP interface over the same job and report APIs. It distinguishes that release from the broader milestone envelope.
 
@@ -31,6 +31,8 @@ The central boundary is a compiled model: **backend executable artifacts plus an
 | Rust runtime and application with a C++ compiler component | A versioned C interface separates runtime ownership from CIRCT/LLVM objects | Project decision |
 | Source annotations carry channel/timing intent | Lowering must preserve and verify provenance | Project decision |
 | ACT is optional and out of process | Native simulation works without it; its time-control API is an M0 gate | Project decision plus experiment |
+| Public analysis extensions consume versioned graph and observation artifacts | Supervised local plugins do not access mutable simulator state or CIRCT objects | Project direction; interface proposed |
+| Flow analysis supports clocked, async and hybrid designs | Protocol decoders share transaction/evidence schemas; local clock counts supplement exact simulated time | Project direction; offline first |
 
 Use a Rust workspace for the runtime and application, and C++ with CMake/Ninja for CIRCT/MLIR passes, backend lowering and initial LLVM ORC integration. Pin both toolchains before implementation. Python supports orchestration and the independent test reference; it is not required for native SV simulation. Link the compiler component into the shipped executable through a narrow C interface. ACT remains a separate optional process; this language split does not introduce a network service.
 
@@ -114,8 +116,19 @@ flowchart TD
 | `timing` | Step 3 constraint graph, source/model provenance and declared-delay checks; step 4 extension points for SDF/STA | Physical-tool dependency or physical signoff in the functional MVP |
 | `integrations` | C ABI, cocotb/svsim adapters, ACT transport | A second scheduling definition |
 | `observability` | Event traces, waveforms, counters, replay information | Mutating model state through tracing |
+| `extensions` | Analysis plugin discovery, capabilities, supervised lifecycle and validated result publication | Loading arbitrary primitive code or changing event semantics |
 
 The small Rust `model` and `support` crates contain IDs, descriptors, error codes and checked serialized schemas without a CIRCT dependency. C++ exchanges data through versioned schema encoders and C declarations, not by sharing Rust object layouts. Maintain one authoritative definition per boundary with reproducible binding/schema generation where useful and conformance tests on both sides. Runtime code depends on these crates, not on compiler classes. Channel monitors consume runtime events; they do not poll mutable compiler IR.
+
+## Analysis extensions and hybrid flow analysis
+
+The [extensibility and hybrid flow analysis plan](extensibility-flow-analysis.md) defines the first public plugin boundary. Supervised local executables consume immutable logical graphs, committed observations and run manifests, then produce versioned metrics and evidence-linked findings. Protocol decoders, analyzers, declarative presentation extensions and import/export adapters have distinct capabilities. Execution backends, compiler passes and primitive models retain their stricter semantic interfaces.
+
+Runtime capture is selective and batched; mandatory monitors and the scheduler remain core-owned. Capture must retain required transitions before coalescing and cannot change circuit ordering or random choices. Plugin crashes and partial output have separate analysis outcomes. No Rust/C++ object layouts or MLIR handles cross this interface. Imported artifacts cannot select executables for automatic launch.
+
+The first plugin connects a component/channel graph, timeline and metrics table for fully clocked, fully async and hybrid circuits. Preserve clock/reset domains, protocol versions and converter/FIFO transaction relationships. Initial native analysis covers four-phase bundled data and declared clocked ready/valid channels, including their qualified boundaries; later encodings require their own qualification. High traffic is distinct from a bottleneck, and unknown wait causes remain unknown.
+
+Offline reports and basic compatible-run comparisons are part of the expanded first plugin release. Live delivery and a waveform IDE remain deferred. The plugin shares CLI/MCP jobs and report services, while physical tools such as Vivado remain step 4 adapters. PLG-01–04 and FLOW-01–08 in the [test plan](test-plan.md#extension-and-hybrid-flow-analysis-qualification) qualify the public boundary and measurements.
 
 ## Multiple execution backends
 
@@ -374,6 +387,10 @@ crates/models/             built-in primitive implementations
 crates/channels/           contracts adapters and monitors
 crates/timing/             model constraints provenance; SDF/STA deferred to step 4
 crates/observability/      traces profiles waves and metrics
+crates/extensions/         analysis plugin protocol lifecycle and schema validation
+plugins/flow-analysis/     first-party native decoder and hybrid flow analyzer
+plugins/example-export/    independent minimal SDK consumer
+ui/flow-report/            local graph timeline and table renderer
 crates/act/                optional process protocol and adapter
 crates/embedding/          C ABI implementation and SDK library targets
 crates/cli/                CLI jobs and MCP facade
@@ -395,6 +412,8 @@ tests/reference/           small independent semantic evaluator
 tests/integration/         frontends harnesses timing and ACT fixtures
 tests/differential/        generators reducers and retained counterexamples
 tests/packaging/           clean-host install and no-compiler tests
+tests/extensions/          plugin compatibility fault and artifact fixtures
+tests/flow/                independent clocked async and hybrid metric fixtures
 benchmarks/                pinned workloads profiles and result schema
 docs/adr/                  evidence-backed architecture decisions
 ```
@@ -420,6 +439,9 @@ First complete [chisel-async L0–L2](chisel-async.md#library-first-delivery-seq
 | G Substitution and ACT | Behavioral/native/QDI bindings under one scoreboard | Transaction equivalence, absent-ACT native execution, precision errors and backend crash handling |
 | H Source-to-model timing | Preserved constraints and behavioral delay fixtures; no physical tools/views | Annotation loss fails; modeled short-control, slow-data and hold violations match hand-derived expectations |
 | I RISCay-MCU native acceptance | Integrate the separately maintained C0 RISC-V Pi supervisor (proposed RV32EC), its pinned firmware, library/views and external reference corpus | Run in Chiselator at S0; qualified RISC-V retirement/effect and power-policy references pass normal shutdown, wake, reset and fault scenarios without a global CPU clock; physical fit remains a separate gate |
+| J Public analysis extensions and hybrid flow analysis | Versioned graph/events, supervised host, flow analyzer, local viewer and independent SDK consumer | PLG-01–04/FLOW-01–08 pass; known hybrid delay appears with evidence, missing capture stays visible, and instrumentation preserves semantics |
+
+Package J follows the core vertical slice and qualified protocol observations; its schema/hand-authored fixture work can accompany package A. Its analyzer/viewer effort is additional to earlier simulator estimates. The companion plan defines increments A–E for this package without changing the four-product dependency order.
 
 M1's CLI, packaging, cocotb, svsim, and C++ adapter lanes use package D/E fixtures and still have their own release gates. Package D alone is a useful runnable increment, not completion of M1. Gate optimization work on D/E and the relevant async semantics; threading is never a prerequisite for basic SV or Chisel acceptance.
 

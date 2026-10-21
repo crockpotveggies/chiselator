@@ -295,6 +295,31 @@ Proposed starting endurance budgets: 10,000 session lifecycles nightly; an 8-hou
 
 Keep release binaries, dependency locks, report schemas and minimized regressions for every supported release. Retain ordinary CI artifacts for a proposed 30 days and unresolved failure bundles until resolution; retain small bug fixtures in Git permanently. Serialized model/cache formats may be invalidated across versions if documented; public result/API compatibility requires explicit version negotiation and tests. Checkpoint compatibility testing begins when that P1 feature exists.
 
+## Extension and hybrid flow analysis qualification
+
+The [extensibility and hybrid flow analysis plan](extensibility-flow-analysis.md) adds EXT/FLW feature requirements. These suites qualify read-only analysis independently from execution backends. A recording, analyzer, UI and simulator can share a bug; expected metrics must come from hand-derived fixtures or an independently implemented reference, not the production decoder generating its own expected answer.
+
+| Suite | Required cases and evidence |
+| --- | --- |
+| PLG-01 Lifecycle | Compatible/incompatible manifests, missing capabilities, malformed messages, duplicate terminal replies, EOF/crash, timeout/cancel, resource/output limits and atomic result publication. Simulation outcome remains intact; required failed analysis blocks its qualification gate. |
+| PLG-02 Artifact contracts | Wrong input hashes, unknown graph IDs, missing endpoints, unsafe path references, schema mismatch, precision loss, dropped/duplicated/reordered events and reset epochs. Imported traces cannot cause automatic execution of a named plugin. |
+| PLG-03 SDK and portability | First-party native analyzer and separate minimal exporter use the same public contract on Windows/Linux/macOS. Test paths, relocation, dependency absence and prior supported schema fixtures; native execution/analysis works without Python/Node. |
+| PLG-04 Instrumentation | Capture on/off and supported optimization/backend variants preserve ordered circuit effects, values and random choices. Exercise zero-time transitions, same-time edges and bounded output pressure; measure capture time/storage and offline analysis costs separately. |
+| FLOW-01 Protocol decoding | Four-phase request/acknowledge lifecycle and clocked ready/valid sampling; repeated equal payloads, consecutive accepting edges with valid held high, configured edge polarity, reset aborts and invalid transitions. Unsupported two-phase/QDI or unknown contract versions cannot be accepted as a qualified decoder. |
+| FLOW-02 Metric arithmetic | Hand-derived offer/accept/complete counts, exact latencies, defined quantiles, time-weighted occupancy, initial tokens, full/empty duration, zero-duration windows and exact large timestamps. Every metric has units, denominator and sample count. |
+| FLOW-03 Hybrid boundaries | Async-to-async, clocked-to-clocked, async-to-clocked and clocked-to-async, including independent clocks, conversion buffers, reset and paused clocks. Preserve declared causal mappings; no invented global cycle count or physical metastability claim. |
+| FLOW-04 Observation completeness | Empty/incomplete traces, window-start transactions, pending end-of-run transactions, missing initial state, selective capture and truncated histories. Required missing data yields partial/error status or unavailable metrics, never healthy zeros or survivor-only latency claims. |
+| FLOW-05 Cause and progress | Slow sink, bounded FIFO, contention, legitimate idle and external waits. Inject bad/missing causal links; classify unsupported causes as unknown. Graph cycles/timeouts/deadline violations alone cannot prove deadlock; include a pending later event. Independent controls distinguish the actual slow boundary from upstream symptoms. |
+| FLOW-06 Graph report | Graph/timeline/table refer to identical IDs, windows and metrics; source/evidence links resolve, exact timestamps survive UI filtering, reset epochs remain distinct, hierarchy totals avoid double counting, and unknown data differs visibly from zero. Render source/log content as data. |
+| FLOW-07 Replay and comparison | Deterministic re-analysis with pinned inputs/plugins/configuration; changed decoder, workload, coverage or metric definition is visible. Compare declared experimental variables only with validated identity mappings. CLI/MCP reports agree; re-analysis is not labeled simulation replay. |
+| FLOW-08 Application and scale | Qualified MCU transaction/effect trace and a small async-to-clocked-memory fixture; independently check the injected service delay and upstream waits. Test a declared large graph/trace, bounded memory, cancellation and partial output without silently omitting channels. |
+
+For a minimal arithmetic oracle, offer at tick 2, accept at tick 5 and return to idle at tick 9. Over `[0, 10)`, expect one accepted transaction, acceptance latency 3 ticks, handshake completion latency 7 ticks and recovery 4 ticks. Add a request at tick 8 that remains pending on a separate channel: it must remain in the pending population without receiving a fabricated completion latency. Change a timestamp or omit the final event and require the expected comparison/completeness failure. Occupancy tests derive the area under a hand-authored piecewise-constant queue trace, including its initial occupancy.
+
+Keep positive, negative and unknown-evidence controls paired. A plausible heatmap is not acceptance evidence. Simulated latency and host profiling use separate oracles, and a digital boundary fixture does not establish CDC or physical timing signoff. Tests involving forks/joins must reject timestamp-based or payload-based correlation when an explicit causal relationship is absent.
+
+Run schema/decoder/arithmetic fixtures on each relevant pull request, native host/plugin smoke tests in packaging lanes, and hybrid/large-trace/fault-injection cases nightly. Release candidates must pass PLG-01–04 and FLOW-01–08 for the advertised protocol/platform set. Apply the existing frozen-experiment, independent-review and known-bad-control requirements to these suites.
+
 ## MVP requirement traceability
 
 This table covers the complete P0 feature list. Suite ownership becomes a named maintainer before implementation; a mapped but unimplemented suite does not satisfy a requirement.
@@ -322,10 +347,16 @@ This table covers the complete P0 feature list. Suite ownership becomes a named 
 | OBS-05 | OPT-01, OPT-02, INT-04 |
 | DIST-01, DIST-02, DIST-03 | PKG-01, DUR-04, REP-05 |
 | MCP-01, MCP-02 | INT-05, DUR-01, DUR-03 |
+| EXT-01 | PLG-01, PLG-03, DUR-01, DUR-03 |
+| EXT-02 | PLG-02, PLG-04, FLOW-01, FLOW-04 |
+| EXT-03 | PLG-03, PLG-01 |
+| FLW-01 | FLOW-01, FLOW-02, FLOW-03, FLOW-04, FLOW-05 |
+| FLW-02 | FLOW-06, FLOW-08 |
+| FLW-03 | FLOW-07, INT-03, INT-05 |
 
 ## Harness architecture and CI policy
 
-Use the architecture's proposed directories: Rust unit tests within `crates`, plus `tests/unit`, `tests/ffi`, `tests/lit`, `tests/reference`, `tests/integration`, `tests/differential`, and `tests/packaging`. Add `tests/contracts` for feature metadata and expected observations, `tests/corpus` for reduced bugs, and `tests/stress` for endurance/fault injection. Cargo runs Rust tests; CTest coordinates C++ compiler/helper tests; lit/FileCheck verifies transformations and diagnostics; Python orchestrates external tools, trace comparison, replay and packaging. The developer build/test entry point combines these lanes with shared result schemas and artifact management.
+Use the architecture's proposed directories: Rust unit tests within `crates`, plus `tests/unit`, `tests/ffi`, `tests/lit`, `tests/reference`, `tests/integration`, `tests/differential`, and `tests/packaging`. Add `tests/contracts` for feature metadata and expected observations, `tests/corpus` for reduced bugs, `tests/stress` for endurance/fault injection, `tests/extensions` for plugin compatibility and `tests/flow` for independent analysis fixtures. Cargo runs Rust tests; CTest coordinates C++ compiler/helper tests; lit/FileCheck verifies transformations and diagnostics; Python orchestrates external tools, trace comparison, replay and packaging. The developer build/test entry point combines these lanes with shared result schemas and artifact management.
 
 A proposed machine-readable case record contains `id`, `requirements`, `owner`, `semantic_contract`, `fixtures`, `required_capabilities`, `oracle`, `observation_points`, `seed_policy`, `limits`, `expected_status`, `expected_diagnostics`, and `ci_tiers`. Add `experiment_revision`, `oracle_lineage`, `required_activity`, `expected_observation_count`, `controls`, and `review_status` for scientific qualification. Campaign records define the sampling/stopping rules and expected case inventory. A linter rejects missing requirements, nonexistent fixtures, unsupported claimed capabilities and empty selected suites. A feature cannot become supported until all required stages pass.
 
@@ -368,7 +399,7 @@ Each optimization also needs an off-switch ablation: same inputs and semantics, 
 
 ## Implementation sequence and required effort
 
-Start with chisel-async L0–L2 and LIB-01–06, then RISCay-MCU C0 with external MCU-01–04, before the main engine. Establish reference/trace infrastructure there, then reuse it during simulator M0/M1. Physical P1–P3 starts only in step 4. The estimates below are earlier engineering judgments for simulator validation infrastructure; they do not budget the expanded library, MCU, physical or board work and must be re-estimated after the functional probes, with step 4 estimated later.
+Start with chisel-async L0–L2 and LIB-01–06, then RISCay-MCU C0 with external MCU-01–04, before the main engine. Establish reference/trace infrastructure there, then reuse it during simulator M0/M1. Physical P1–P3 starts only in step 4. The estimates below are earlier engineering judgments for simulator validation infrastructure; they do not budget the expanded library, MCU, plugin/flow-analysis, physical or board work and must be re-estimated after the functional probes, with step 4 estimated later.
 
 | Work package | Deliverable | Estimated effort |
 | --- | --- | --- |

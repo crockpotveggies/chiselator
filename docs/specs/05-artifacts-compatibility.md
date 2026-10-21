@@ -34,6 +34,10 @@ Use stable semantic IDs in observations. Model comparisons include exact values,
 
 ## Cache and publication
 
+Requested analysis adds the [graph, flow-event and analysis bundle](../extensibility-flow-analysis.md#graph-report-and-automation). Its identity includes input artifact hashes, plugin/decoder versions, metric/rule versions, window, filters and resolved configuration. Re-analysis produces a new analysis identity without modifying the simulation run. Preserve exact times, coverage ranges, reset epochs, initial/pending transactions and model-scoped semantic IDs. Decoder/schema compatibility is independent of simulator binary compatibility.
+
+Graph overlays and findings must reference existing semantic IDs and recorded evidence. Unknown coverage is not zero activity. Comparisons require compatible metric definitions and explicit mappings for changed models; intentional experiment variables remain visible. Publish an analysis bundle atomically only after validating its declared completeness and artifact hashes.
+
 Compile into a temporary directory. Validate every artifact/hash, then publish atomically under its build key using a platform-qualified same-filesystem operation and concurrent-writer coordination. A loader only accepts a complete manifest. Interrupted writes, wrong ABI/target, corrupt content and missing assets are cache misses or explicit errors, never executable cache hits.
 
 Run directories are unique and retain incremental progress plus a final completion record. Publication order must distinguish a partial bundle from a completed one. The supervisor may preserve a terminal error even if the worker cannot finish reports. Referenced external inputs must be retained or content-addressed with their availability recorded; a hash alone cannot recreate a deleted stimulus file.

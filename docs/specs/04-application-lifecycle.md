@@ -30,6 +30,8 @@ Proposed CLI exit codes are 0 success, 1 test failure, 2 configuration/unsupport
 
 ## Supervision and limits
 
+The [analysis plugin lifecycle](../extensibility-flow-analysis.md#plugin-packaging-and-lifecycle) uses the same supervisor for read-only post-run jobs. Analysis completeness and findings are recorded separately from the simulation outcome; a plugin error cannot overwrite a simulation failure or success. A regression that requires analysis cannot pass without complete, compatible results. Resolve installed plugin identities explicitly, negotiate capabilities, validate published artifacts and retain partial/canceled/error status.
+
 Use the same executable's worker mode for isolated compile/run jobs. Launch with native process APIs and argument arrays; do not depend on a shell, POSIX signals, `fork`, or path rewriting. The supervisor owns process groups/job objects, captures output, enforces limits and reaps children. In-process embedding retains its performance option but cannot promise containment of a fatal native crash.
 
 Limits include wall time, simulated time, event/delta work, memory and output size. Distinguish a normal requested `run_until` boundary from a test budget that expires before success. Cancellation requests cooperative stop first, then terminates the owned worker after a documented grace period. Finalization records actual completed work and partial artifacts. Device cancellation requires completion acknowledgement before referenced buffers can be freed.

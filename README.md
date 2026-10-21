@@ -29,6 +29,8 @@ Read the [simulator design proposal](docs/simulator-proposal.md) for the review 
 
 The [software architecture](docs/software-architecture.md) defines component ownership, the CIRCT-to-runtime boundary, execution-plan records, scheduler and kernel contracts, API sketches, repository layout, and the first implementation work packages. It includes CPU execution, optional GPU backends and independent simulation batches under shared semantic contracts; GPU support remains experimental and is not required for the MVP.
 
+The [extensibility and hybrid flow analysis plan](docs/extensibility-flow-analysis.md) adds a versioned analysis plugin interface and a first plugin for fully clocked, fully async and hybrid designs. It connects a logical graph, transaction timeline and metrics table to recorded evidence, with protocol-aware latency, traffic, buffering and wait analysis. Offline analysis comes first; live dashboards and execution-changing plugins remain separate later work.
+
 The researched [MVP feature list](docs/mvp-feature-list.md) compares established simulator capabilities and prioritizes execution, APIs, CLI, reports, installer binaries, MCP integration, and release acceptance tests. It proposes a smaller first-team release within the broader roadmap.
 
 The [simulator test plan](docs/test-plan.md) defines accuracy contracts, independent reference comparisons, deterministic replay, async timing checks, fuzzing, endurance and compatibility tests, and CI release gates for every P0 feature.

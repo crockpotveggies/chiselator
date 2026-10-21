@@ -1,10 +1,12 @@
 # Simulator research and MVP feature list
 
-Research and recommendations, updated October 5, 2026. This is a proposed first-team MVP for the [simulator proposal](simulator-proposal.md) and [software architecture](software-architecture.md), refined by the [five implementation specifications](specs/README.md). Every Chiselator feature below is planned, not implemented.
+Research and recommendations. This is a proposed first-team MVP for the [simulator proposal](simulator-proposal.md) and [software architecture](software-architecture.md), refined by the [five implementation specifications](specs/README.md) and the [extensibility and hybrid flow analysis plan](extensibility-flow-analysis.md). Every Chiselator feature below is planned, not implemented.
 
 ## Recommended MVP
 
-Ship a local simulator that lets the team **install, run a small clocked or async design from Chisel or SV, reproduce a failure, inspect waves and channel reports, and automate the same workflow through CI or MCP**. The first complete application is the [Raspberry Pi power-supervisor MCU](async-mcu.md), built using chisel-async and simulated in Chiselator. Its independent ISA and power-policy references check ROM/RAM, GPIO, event/timekeeping and shutdown/wake behavior. Demonstrate behavioral, QDI, bundled-data, and wrapped clocked implementations of a selected block under shared transaction tests.
+Ship a local simulator that lets the team **install, run a small clocked, async or hybrid design from Chisel or SV, reproduce a failure, inspect waves and channel reports, and automate the same workflow through CI or MCP**. The first complete application is the [Raspberry Pi power-supervisor MCU](async-mcu.md), built using chisel-async and simulated in Chiselator. Its independent ISA and power-policy references check ROM/RAM, GPIO, event/timekeeping and shutdown/wake behavior. Demonstrate behavioral, QDI, bundled-data, and wrapped clocked implementations of a selected block under shared transaction tests.
+
+The expanded first-team release adds read-only analysis extensions and an offline hybrid flow plugin: a connected graph, transaction timeline and metrics table, with CLI/MCP results. These additions follow the native execution vertical slice and do not add dependencies to the earlier library/MCU work. Live dashboards and execution-changing plugins remain deferred.
 
 Keep the native executable self-contained for SV and already-elaborated RTL. Chisel elaboration still needs its Scala/JVM environment; Python is required only for Python tests, and ACT only for ACT-backed models. No hosted account or external C++ compilation is required for native built-in simulation.
 
@@ -12,7 +14,7 @@ The implementation uses the [hybrid Rust/C++ architecture](software-architecture
 
 The proposed cut uses small supported language subsets, behavioral delay/constraint fixtures, bounded adapters, and native CPU archives for Windows x86-64, Linux x86-64 and macOS arm64. Broader installer/registry formats follow later. The sequence is chisel-async, RISCay-MCU, Chiselator, then physical chip build. Steps 1–3 exclude Yosys and physical-tool dependencies. PDK/cell selection, synthesis and mapped-netlist/STA/SDF qualification are deferred to [step 4](chip-build-plan.md), with no current tool decision required.
 
-The first deliverable is the independent [chisel-async library](chisel-async.md), built and externally tested before the main simulator. Its completeness catalog is broader than the initial native simulator subset. Library release status and per-backend support are separate; a native release must state any unqualified library protocols rather than imply whole-stack compatibility. This changes build order without renumbering the 32 simulator P0 requirements.
+The first deliverable is the independent [chisel-async library](chisel-async.md), built and externally tested before the main simulator. Its completeness catalog is broader than the initial native simulator subset. Library release status and per-backend support are separate; a native release must state any unqualified library protocols rather than imply whole-stack compatibility. Existing simulator requirement IDs are retained; EXT and FLW add the extension/analysis requirements below.
 
 Three categories separate evidence from product decisions:
 
@@ -129,7 +131,22 @@ Coverage terminology must stay precise. P0 protocol bins are functional coverage
 | Selected `waves.fst` or `waves.vcd` | Captured signals and declared observation coverage; generated when requested |
 | Optional `events.jsonl` / `profile.json` | Bounded causal trace or runtime/compiler counters; instrumentation settings included |
 
-Use `null` or an explicit unsupported/unmeasured reason for missing metrics, never fabricated zeros. Async runs have no single global cycle count; report transactions and simulated time, with per-domain clock counts where useful. Normalize latency comparisons to the same acceptance/completion definition. A minimal offline HTML summary is P1 because text, JSON, CSV and existing wave viewers already support the MVP workflow.
+Use `null` or an explicit unsupported/unmeasured reason for missing metrics, never fabricated zeros. Async/hybrid runs have no single global cycle count; report transactions and simulated time, with per-domain clock counts where useful. Normalize latency comparisons to the same acceptance/completion definition. FLW-02 adds a bounded local graph report to P0; a general report dashboard and waveform IDE remain deferred.
+
+## P0 extensibility and hybrid flow analysis
+
+The [companion plan](extensibility-flow-analysis.md) defines the read-only process boundary, graph/event schemas, protocol meanings and measurement rules. Initial native flow analysis covers four-phase bundled data and declared clocked ready/valid, including qualified converters/FIFOs between them. Two-phase and QDI decoders remain later independently qualified capabilities, consistent with native protocol support.
+
+| ID | Feature | Minimum scope and acceptance test |
+| --- | --- | --- |
+| EXT-01 | Supervised analysis plugins | Explicitly selected local executables, version/capability negotiation, bounded jobs, cancellation and validated output publication; plugin errors remain separate from simulation outcomes. |
+| EXT-02 | Public graph and observation contracts | Stable model-scoped IDs, source/domain/protocol metadata, exact committed events, reset epochs and capture coverage; missing required observations reject or explicitly limit analysis. |
+| EXT-03 | SDK and independent consumer | Documented schemas/lifecycle, first-party native analyzer and a separate small export plugin using the same API; no core special case or mandatory Python/Node dependency for shipped analysis. |
+| FLW-01 | Clocked async and hybrid metrics | Counts, latency distributions, recovery time, occupancy and supported wait categories; independent expected results and explicit censored/unknown data. |
+| FLW-02 | Offline graph report | Linked hierarchy graph, timeline and table; metric/window selection, domain/boundary filters, source/evidence navigation and visible missing-data states. |
+| FLW-03 | Automation and comparison | Same structured results through CLI/MCP; compatible-run baseline comparison with declared experimental differences and metric versions; unsupported comparisons rejected. |
+
+High activity, simulated latency and host execution cost are different metrics. A bottleneck candidate needs evidence and assumptions; ordinary inactivity is not a proven deadlock. Optional detailed flow capture becomes required when the requested analysis needs it. Publish the analysis bundle defined in the companion plan only when requested, retaining incomplete/aborted observations and analysis status. Basic flow comparison is P0; automatic optimization and broad regression dashboards are not.
 
 ## P0 installer and release features
 
@@ -178,7 +195,8 @@ Defer remote HTTP hosting, arbitrary live signal forcing, automatic RTL edits, t
 | DPI-C subset and expanded Verilator C++ compatibility | P1 | C ABI and simple wrappers come first; context, purity and threading contracts need dedicated tests |
 | Native checkpoints and restore | P1 | A seed replay is sufficient initially; correct snapshots must include queues, processes, monitors and random state |
 | Interactive REPL, breakpoint/watch UI and bounded waveform queries | P1 | API stepping/inspection and failure traces support early debug; full source debug is another subsystem |
-| HTML report, report comparison, SAIF export and mapped area summaries | P1 | Add once reliable JSON/channel/timing data exist; no energy estimate without a physical model |
+| General report dashboards, broad comparison, SAIF export and mapped area summaries | P1 / step 4 for mapped area | FLW-02/03 cover bounded offline flow views and basic comparison; broader reporting follows, and physical estimates require qualified models |
+| Live flow dashboards, remote plugin services and automatic design optimization | P1/P2 | First validate recorded-run metrics and local extension contracts; no automatic buffer sizing or RTL edits in P0 |
 | Offline PGO, activity-aware partitioning, code sharing and within-run threading | P1 | Preserve extension points and baseline counters now; correctness and reproducible benchmarks precede optimization |
 | Broader platform installers and package registries | P1 | Expand the tested release matrix instead of claiming every package works on day one |
 | Mapped libraries/STA/SDF integration | Deferred step 4 | Requires later physical dependency and artifact qualification; no mapped fixture gates the functional MVP |
@@ -202,6 +220,8 @@ The MVP remains a substantial compiler/runtime project. Feature rows are accepta
 6. **Qualify modeled timing:** annotation provenance, declared delay assumptions and relative-constraint checks with passing and deliberately failing behavioral fixtures. Mapped-library/SDF/STA work belongs to step 4 after the simulator.
 7. **Finish adapters and release:** cocotb/svsim, thin MCP, packaging, documentation and reproducibility checks. Adapter work can proceed once the API is stable.
 
+The EXT/FLW lane starts schema/fixture work alongside native semantics and completes the host, analyzer and viewer after qualified channel observations exist. Its increments A–E are specified in the companion plan. This is added release scope and needs a separate estimate; earlier simulator staffing figures do not include it.
+
 | Gate | Required evidence |
 | --- | --- |
 | Clean install | Each native archive runs SV fixtures without rustc, clang/g++, ACT, Yosys or network; real Windows/Linux/macOS install and semantic tests pass |
@@ -212,6 +232,8 @@ The MVP remains a substantial compiler/runtime project. Feature rows are accepta
 | Reproduction | Selected failing seeds replay with matching artifact identities; changed inputs are rejected as exact replay |
 | Harness parity | C++/SV/cocotb/svsim see consistent defined observation points and outcomes |
 | Automation parity | CLI and MCP return equivalent reports; cancellation, crash and timeout never become PASS |
+| Extension interoperability | First-party flow analyzer and independent export plugin use the same versioned API on native targets; mismatch, crash, cancellation and malformed artifacts are handled explicitly |
+| Hybrid flow analysis | Known clocked/async/hybrid fixtures produce independently checked metrics, linked graph evidence and honest capture limitations; instrumentation preserves circuit behavior |
 | Evidence quality | Profiling build runs in CI; every supported feature has positive/negative tests; no unexplained differential mismatch in the release corpus |
 
 Do not gate the first-team MVP on beating GSIM. Publish reproducible baseline throughput, compile latency and memory, with correct results and declared observation modes. The broader proposal's comparative v1 performance targets remain later gates. A product that finds the team's async bugs and works in daily tests is a useful MVP even before it wins a throughput benchmark.

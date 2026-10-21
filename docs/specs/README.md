@@ -12,6 +12,8 @@ Draft contracts, October 5, 2026. These specify proposed behavior; no simulator,
 
 “Must” denotes a proposed release requirement, not a claim of current support. Owners are engineering roles; assign maintainers when implementation starts. Existing requirement and suite IDs refer to the [MVP list](../mvp-feature-list.md) and [test plan](../test-plan.md).
 
+The companion [extensibility and hybrid flow analysis plan](../extensibility-flow-analysis.md) adds proposed public analysis contracts and EXT/FLW release requirements. It consumes these five specifications: it cannot replace protocol semantics, expose compiler objects or turn an incomplete analysis into passing simulation evidence. Read-only analysis plugins are distinct from the deferred runtime-loaded primitive plugins in specification 02.
+
 ## Settled scope
 
 - Apache-2.0 project code; dependency licenses remain separate.
@@ -21,6 +23,7 @@ Draft contracts, October 5, 2026. These specify proposed behavior; no simulator,
 - Chisel and SystemVerilog converge through a pinned, verified CIRCT subset. CIRCT is a family of dialects, not one automatically supported input format. The execution plan is scheduling/storage metadata, not a new HDL IR.
 - Rust owns the runtime and application; C++ owns CIRCT/LLVM compilation and initial JIT integration behind versioned C interfaces.
 - Native CPU releases target Windows x86-64, Linux x86-64 and macOS arm64. WSL is optional. GPU execution is an optional later backend, with no GPU dependency in the CPU package.
+- Public analysis plugins use versioned graph/observation/result artifacts and supervised local processes. The first flow plugin covers clocked, async and hybrid designs through qualified protocol decoders; offline graph/timeline reports precede live updates.
 - No Yosys dependency in steps 1–3. The [step 4 synthesis decision](../chip-build-plan.md#synthesis-decision) is deferred, not an outstanding approval request. Do not add physical tools or physical qualification gates to the functional library, MCU or simulator scope.
 - The first complete example is the [Raspberry Pi power-supervisor MCU](../async-mcu.md), built with chisel-async and simulated using Chiselator. It uses bundled-data handshakes, explicit primitive bindings and independent timekeeping. Small clocked and async fixtures come first to validate the engine. Ordinary clocked designs remain first-class.
 - GF180MCU is a retained step 4 candidate to reassess, not a selected process or required PDK. Native simulation works without a physical build, PDK or ACT.

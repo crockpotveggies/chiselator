@@ -49,6 +49,8 @@ Compiler operations are coarse; pure arithmetic stays within compiled kernels ra
 
 Kernel return reports completion or a structured error plus bounded effect output. Runtime helpers validate effect permissions. The compiler and loader agree on exact internal ABI versions; mismatch rejects the artifact. MVP built-in model registration is static and versioned; arbitrary dynamically loaded primitive plugins are deferred.
 
+Read-only analysis plugins use the separate [public extension contract](../extensibility-flow-analysis.md), not this kernel ABI. Export logical graph identities, provenance and required committed observations without exposing compiler objects. A backend/optimization variant that cannot preserve a requested observation must reject that analysis mode or select an explicitly compatible variant; it cannot silently omit the data.
+
 Code/model handles outlive all sessions and pending work. Session release waits for backend completion before freeing borrowed storage. No kernel retains a borrow beyond its documented execution lease. `unsafe` stays in audited boundary modules with tested lifetime, aliasing, bounds and thread-affinity invariants.
 
 No panic or C++ exception may cross the C ABI. Recoverable failures become status codes and owned diagnostic records. An intercepted internal panic fails the session; it is not safely resumable. Abort/crash containment requires the application worker process. Test actual code loading and callbacks, not only mock handles.
