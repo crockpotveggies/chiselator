@@ -1,0 +1,149 @@
+{
+  "schema_version": "0.1.0",
+  "analysis_id": "a:expected",
+  "run_id": "r:synthetic",
+  "graph_id": "g:receipt-example",
+  "status": "COMPLETE",
+  "plugin": {
+    "id": "fixture-oracle",
+    "version": "1"
+  },
+  "inputs": {
+    "graph_sha256": "40dc5c5aabdb67d609691bf9075c841193f6e19bdf158b6f43a20a39ddbbdc29",
+    "events_sha256": "6d475f75f7584a88c42a200561e11387d68c707cc8a186d53ef7bacde493db61"
+  },
+  "window": {
+    "start_fs": "0",
+    "end_fs": "20000000"
+  },
+  "metrics": [
+    {
+      "id": "accepted-count",
+      "definition": "accepted-count@1",
+      "scope": "c:async",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "20000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "1",
+      "samples": "1"
+    },
+    {
+      "id": "completed-count",
+      "definition": "completed-count@1",
+      "scope": "c:async",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "20000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "1",
+      "samples": "1"
+    },
+    {
+      "id": "acceptance-rate",
+      "definition": "acceptance-rate@1",
+      "scope": "c:async",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "20000000"
+      },
+      "unit": "count/fs",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "20000000",
+      "samples": "1"
+    },
+    {
+      "id": "acceptance-latency",
+      "definition": "acceptance-latency@1",
+      "scope": "c:async",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "20000000"
+      },
+      "unit": "fs",
+      "status": "known",
+      "numerator": "10000000",
+      "denominator": "1",
+      "samples": "1"
+    },
+    {
+      "id": "recovery-latency",
+      "definition": "recovery-latency@1",
+      "scope": "c:async",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "20000000"
+      },
+      "unit": "fs",
+      "status": "known",
+      "numerator": "4000000",
+      "denominator": "1",
+      "samples": "1"
+    },
+    {
+      "id": "completion-latency",
+      "definition": "completion-latency@1",
+      "scope": "c:async",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "20000000"
+      },
+      "unit": "fs",
+      "status": "known",
+      "numerator": "14000000",
+      "denominator": "1",
+      "samples": "1"
+    },
+    {
+      "id": "accepted-count",
+      "definition": "accepted-count@1",
+      "scope": "c:clocked",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "20000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "1",
+      "samples": "1"
+    },
+    {
+      "id": "acceptance-latency",
+      "definition": "acceptance-latency@1",
+      "scope": "c:clocked",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "20000000"
+      },
+      "unit": "fs",
+      "status": "unknown",
+      "samples": "0",
+      "reason": "Sampled Decoupled has no token offer time before fire."
+    }
+  ],
+  "findings": [],
+  "limitations": [
+    "Hand-authored arithmetic fixture; not a simulator run or MCU benchmark.",
+    "No raw signal observations, occupancy or wait-reason coverage."
+  ],
+  "extensions": {},
+  "provenance": {
+    "plugin_package_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "configuration_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "decoder_versions": {
+      "hand-authored": "1"
+    },
+    "metric_versions": {
+      "fixture-arithmetic": "1"
+    },
+    "deterministic": true
+  }
+}

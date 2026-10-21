@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chiselator:analysis:flow-event:0.1.0",
+  "title": "Normalized flow event (one JSONL record)",
+  "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "graph_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "seq": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "time": {
+      "type": "object",
+      "properties": {
+        "fs": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "delta": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "phase": {
+          "enum": [
+            "active",
+            "inactive",
+            "nba",
+            "read-write",
+            "read-only",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "fs",
+        "delta",
+        "phase"
+      ],
+      "additionalProperties": false
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1
+    },
+    "data": {
+      "type": "object"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "artifact": {
+            "type": "string",
+            "minLength": 1
+          },
+          "record": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "artifact",
+          "record"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "graph_id",
+    "seq",
+    "time",
+    "kind",
+    "data",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "kind": {
+          "const": "transaction.offer"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "channel_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "ordinal": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "channel_id",
+            "epoch",
+            "ordinal"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "transaction.accept"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "channel_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "ordinal": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "channel_id",
+            "epoch",
+            "ordinal"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "transaction.complete"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "channel_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "ordinal": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "channel_id",
+            "epoch",
+            "ordinal"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "transaction.abort"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "channel_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "ordinal": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "transaction_id",
+            "channel_id",
+            "epoch",
+            "ordinal",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "transaction.transfer"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "channel_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "ordinal": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            },
+            "sampling": {
+              "type": "object",
+              "properties": {
+                "domain_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "edge_index": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*$"
+                }
+              },
+              "required": [
+                "domain_id",
+                "edge_index"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "transaction_id",
+            "channel_id",
+            "epoch",
+            "ordinal",
+            "sampling"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "boundary.link"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "boundary_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "relation": {
+              "enum": [
+                "forward",
+                "fork",
+                "join",
+                "select",
+                "convert"
+              ]
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "destinations": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "causes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "boundary_id",
+            "relation",
+            "sources",
+            "destinations",
+            "causes"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "effect.commit"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "effect_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner_node": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reset_domain": {
+              "type": "string",
+              "minLength": 1
+            },
+            "epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "operation": {
+              "enum": [
+                "memory.write",
+                "mmio.write",
+                "retire",
+                "capture"
+              ]
+            },
+            "transactions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "causes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "effect_id",
+            "owner_node",
+            "reset_domain",
+            "epoch",
+            "operation",
+            "transactions",
+            "causes"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clock.edge"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "domain_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "edge_index": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          "required": [
+            "domain_id",
+            "edge_index"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "domain.reset"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "domain_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "new_epoch": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          "required": [
+            "domain_id",
+            "new_epoch"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "coverage.gap"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "channels": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            },
+            "end_fs": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          "required": [
+            "channels",
+            "reason",
+            "end_fs"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

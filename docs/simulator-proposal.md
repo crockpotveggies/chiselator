@@ -1,10 +1,10 @@
 # Chiselator simulator design proposal
 
-Draft for architectural review. Revised October 5, 2026 following project feedback.
+Draft for architectural review. Original research revised October 5, 2026; product status and analysis interfaces refreshed October 20, 2026.
 
 The companion [software architecture](software-architecture.md) translates this proposal into component boundaries, data contracts, runtime interfaces, and an implementation sequence.
 
-**Four-step product order:** build and independently qualify [chisel-async](chisel-async.md), then [RISCay-MCU](async-mcu.md) on an existing simulator, then Chiselator, then physical chip implementation. The Apache-2.0 library evolves async Chisel ideas through its own API, component catalog and verified contracts; it is not a renamed copy of ASYNC-Chisel. Its component corpus and the MCU's external reference bundle become inputs to native Chiselator qualification. Physical feasibility and all physical dependency decisions are deferred to the [step 4 backlog](chip-build-plan.md).
+**Current product status:** [chisel-async](chisel-async.md) and [RISCay-MCU](async-mcu.md) are built in separate repositories. Their contracts and externally checked corpus feed native Chiselator qualification, which remains pending. [Inspected revisions and limits](integration-status.md) are recorded centrally. Physical implementation is a separate fourth responsibility; upstream exploration has begun and does not gate simulation.
 
 ## Review summary
 
@@ -17,7 +17,7 @@ M1 includes a one-command experience and a self-contained simulator executable w
 **Decisions requested from reviewers:**
 
 1. Accept the channel architecture, native clocked/async support, and optional ACT process boundary.
-2. Staff chisel-async L0–L2, then RISCay-MCU C0, then Chiselator and its timeboxed Arc experiment; re-estimate the simulator envelope after functional probes. Physical feasibility and its staffing/dependencies are step 4 work to plan later.
+2. Staff native Chiselator integration and its bounded Arc experiment, then re-estimate the simulator and plugin work from evidence. Existing upstream products supply the corpus.
 3. Adopt the staged feature/test matrix and proposed 20% GSIM margin before performance tuning.
 4. Choose the final project name and review dependency packaging before distribution. The project license is Apache-2.0, as selected by the owner; “Chiselator” remains a working name.
 
@@ -33,7 +33,7 @@ M1 includes a one-command experience and a self-contained simulator executable w
 
 ## Scope within the larger toolchain
 
-Simulation is the first deliverable. Preserve source locations, hierarchy, bit widths, clock and reset intent, memory semantics, channel contracts, and timing intent for linting, formal checks, synthesis integration, and performance analysis. A versioned project manifest identifies sources, top module, parameters, bindings, toolchain revisions, overrides, and workloads.
+Native simulation is the next stack deliverable. Preserve source locations, hierarchy, widths, clocks/resets, memory semantics, channel contracts and timing intent for analysis and downstream tools. A versioned project manifest identifies sources, top, parameters, bindings, toolchain revisions, overrides and workloads.
 
 Use existing frontends and implementation tools. A familiar restricted SV testbench language, cocotb, Chisel svsim, and C++ are delivery requirements with separate tests. ACT/CHP integration starts in M0 and delivers in M2; it is not a prerequisite for native simulation.
 
@@ -41,7 +41,7 @@ Use a hybrid implementation: Rust for the runtime, scheduler, primitives, channe
 
 Pin Rust/Cargo dependencies alongside the native compiler toolchain, and validate the mixed build, ABI and code lifetimes in M0/M1. CPU execution is the baseline; optional GPU backends use the same semantic contracts with target-specific layouts and code. Required native releases target Windows x86-64, Linux x86-64 and macOS arm64. WSL is optional and cannot substitute for Windows qualification. The repository has documentation and a license, not an implemented simulator.
 
-The [five implementation specifications](specs/README.md) refine this proposal and take precedence over overlapping sketches. The first complete application is RISCay-MCU, a Chisel bundled-data RISC-V supervisor. Steps 1–3 require no Yosys, PDK or physical chip build. Synthesis and process choices, including the Yosys question and GF180MCU candidate, are deferred to [step 4](chip-build-plan.md#synthesis-decision); no answer is needed now. Functional release gates require declared-model evidence only.
+The [five implementation specifications](specs/README.md) refine this proposal. The existing first application is the hybrid RV32E RISCay-MCU, in four-phase and native Click variants. No Yosys, PDK or physical build is required. [Physical tool choices](chip-build-plan.md#synthesis-decision) remain separately owned; simulator release gates use declared-model evidence.
 
 ## Evidence and corrections to the supplied analysis
 
@@ -98,7 +98,7 @@ The native compiler input contract is a **versioned, verified subset of CIRCT/ML
 
 Arc is the preferred simulation-oriented lowering layer, subject to M0's ordering tests. LLVM generates native machine code; the Chiselator runtime executes it and coordinates clocks, reactive work, and delayed events. We therefore compile a shared circuit model rather than interpret either source language directly. Both clocked and asynchronous execution use this contract. A new operation is justified by missing semantics or optimization needs, not by the existence of two source languages. Frontend acceptance alone does not establish simulator support; every supported operation must pass normalization, lowering, and runtime tests. [CIRCT frontend](https://circt.llvm.org/docs/Tools/circt-verilog/), [LLHD](https://circt.llvm.org/docs/Dialects/LLHD/), [Arc](https://circt.llvm.org/docs/Dialects/Arc/).
 
-Build chisel-async as an independently releasable Chisel library with typed protocols, composable storage/control, C-elements, latches, delay intent, mutexes, timing contracts and clocked/memory interfaces. Its annotated extmodules have external SV simulation views before native simulator bindings exist, so an async design written in Chisel need not include handwritten SV. Check widths, parameters, semantic versions and endpoint manifests at elaboration and import. Its defined completeness catalog and stack compatibility matrix are in the [library architecture](chisel-async.md). This builds on Chisel's documented external-module mechanism. [Chisel external modules](https://www.chisel-lang.org/docs/explanations/blackboxes).
+Integrate chisel-async through its pinned exported contracts and external simulation views. Check widths, parameters, semantic versions, resource hashes and endpoint/probe identities at import, and preserve them through CIRCT lowering. The [integration guide](chisel-async.md) replaces the original library build roadmap. Library component semantics remain upstream-owned; native bindings must demonstrate equivalence.
 
 Use a thin simulation representation around CIRCT operations and explicit scheduling metadata before committing to a large new dialect. It must represent pure combinational regions, registers and latches, memory ports, processes, delayed drivers, subscriptions, and foreign effects. Keep hierarchy for diagnostics and possible code sharing even when optimization flattens a region.
 
@@ -182,7 +182,7 @@ LLVM supports arbitrary-width integer types, but large values still need legal c
 
 ## QDI bundled-data and GALS support
 
-The first complete workload is the [Raspberry Pi power-supervisor MCU](async-mcu.md), built with chisel-async and simulated using Chiselator. It implements RISC-V (proposed RV32EC) with handshake fetch/decode/execute, provisional 2 KiB program storage/256-byte RAM, GPIO and independent timekeeping. Firmware storage and physical fit must be remeasured for this architecture. Independent RISC-V instruction-level and supervisor models check retirement/effects, wake, graceful shutdown, external switch control, reset and fault policy. The MCU and chisel-async each have a dedicated repository to be added by the owner. A small pipeline and selected MCU block provide behavioral, QDI, bundled-data, and wrapped clocked substitutions under shared transaction/reset/backpressure tests.
+The first complete workload is the existing [RISCay-MCU](async-mcu.md): RV32E, four-phase BD and native Click variants, 2 KiB executable plus 1 KiB working SRAM in the reference profile, boot/loader, peripherals and independent timekeeping. It is hybrid, with clocked memory/service boundaries. Independent retirement/effect and boot/peripheral references establish native acceptance. Application power-policy firmware and physical fit are separate qualifications. Small pipelines and selected block substitutions remain useful earlier fixtures.
 
 | Style | Execution model | Required checks |
 | --- | --- | --- |
@@ -306,9 +306,9 @@ Publish an executable feature matrix tied to a toolchain revision. A frontend pa
 | Memories and multiple clocks, including negedge | M1, with pausable/GALS integration in M2 | Explicit collision semantics, simultaneous edges, and generated-clock scheduling |
 | Restricted SV testbenches | M1 | `initial`, `#delay` including tested `#0`, event controls, `wait`, `$display`, `$finish`, `$readmemh`, `$dumpfile`/`$dumpvars` |
 | cocotb, Chisel svsim, and C++ adapters | M1 acceptance lanes | Validate callback/control protocols on pinned versions; explicit unsupported-feature errors |
-| Latches, C-elements, four-phase/dual-rail channels, delay randomization | Library L1/L2; native integration M2 | Independently qualified library contracts, then native bindings and initialized-state checks |
+| Latches, C-elements, four-phase/dual-rail channels, delay randomization | Built library; native integration M2 | Pinned upstream contracts, then independent native bindings and initialized-state checks |
 | ACT/CHP and production-rule models | M0 spike and M2 integration | Optional process backend; native Chisel/SV runs with ACT absent |
-| Two-phase channels | Library L2; native integration M5 unless promoted with evidence | Separate protocol/converter contract; simulator capabilities report qualification independently |
+| Native two-phase Click channels | Built library; native integration M2 for the second MCU variant | Separate protocol/receipt contract and parity/reset checks; report partial support until qualified |
 | Full X-aware operators | M5 | Operator semantics and boundary propagation documented |
 | Assertions | Primitive/channel checks first, selected SV assertions later | No implied full SVA support |
 | Mapped cell netlists and required cell timing models | M3 | One pinned library and documented supported subset first |
@@ -374,7 +374,7 @@ The C ABI/C++ wrapper and simple-top Verilator adapter remain available. Validat
 
 ## Licensing ownership and naming
 
-Keep the MCU and chisel-async in separate dedicated repositories, which the project owner will add. Pin their source/artifact and contract versions in simulator integration manifests; keep product implementations in their owning repositories. Chip needs enter the simulator through public primitive models, channel contracts, timing attributes, and testbench interfaces. Publish generic examples and regressions so the core remains useful outside the first team. Contribute generic SV/LLHD/Arc improvements upstream where accepted; keep runtime delay randomization, metrics, and chip-independent async checks here. Upstream acceptance is not a release dependency.
+Keep MCU and library implementations in their existing dedicated repositories. Pin source/artifact and contract versions in integration manifests; retain only minimized shared fixtures here. Preserve public primitive, channel, timing and testbench boundaries. Contribute generic SV/LLHD/Arc improvements upstream where accepted; upstream acceptance is not a release dependency.
 
 | Component | Inspected license information | Proposed boundary |
 | --- | --- | --- |
@@ -446,31 +446,28 @@ Use ablations to attribute gains to flag correctness, adaptive evaluation, parti
 
 ## Delivery plan and staffing
 
-The [product sequence](chisel-async.md#library-first-delivery-sequence) precedes these simulator milestones: L0 establishes contracts/build, L1 implements bundled-data foundations, L2 qualifies the functional catalog, and C0 builds RISCay-MCU against independent external references. Chiselator is step 3; physical P1–P3 work begins only in step 4. The earlier effort ranges below are historical and include now-deferred physical timing work, so they must be re-estimated for the revised functional scope. Small compiler representability probes may accompany library work; physical probes do not.
+The [product sequence](integration-status.md) has reached simulator integration: the library and MCU exist upstream. The old person-month estimates have been removed from active guidance; they predated these products and the plugin/API scope. Re-estimate from bounded compiler/runtime and extension-host probes. Compiler/backend, runtime/integration and independent verification remain distinct engineering responsibilities.
 
-Planning assumption: three experienced full-time engineers covering compiler/backend, runtime/integration, and RTL/async verification, with part-time release/licensing review. A person-month is one engineer's full-time work for roughly four weeks. Estimates include implementation, tests, and user documentation; they are engineering planning ranges, not commitments or benchmark-derived facts. Parallel lanes overlap only when interfaces are ready.
-
-| Milestone | Effort | Deliverable and exit criterion |
-| --- | --- | --- |
-| M0 Feasibility and contracts | 1–2 person-months | Arc experiment capped at 10 compiler-engineer days; ACT frontier/protocol spike; pinned traces and explicit backend decision. Native clocked path and optional ACT boundary both assessed. |
-| M1 Usable semantic core | 8–12 person-months | Reference scheduler and JIT; standalone clocked Chisel/SV; restricted SV testbenches; C ABI, cocotb and svsim acceptance lanes; CLI/cache/doctor/replay; FST; native archive recipes and clean-host tests. Mandatory scheduling fixtures pass without ACT or a host Rust/C++ compiler on all three native targets; re-estimate after platform probes. |
-| M2 Mixed async vertical slice | 6–10 person-months | Integrate chisel-async native bindings and initialized bits; typed four-phase/dual-rail channels; behavioral/QDI/bundled/wrapped-clocked substitution; optional ACT backend; pausable GALS clocks; randomized delays and source timing-intent extraction. Qualify the already externally verified RISCay-MCU in Chiselator at S0 with independent retirement/effect and policy references. Existing library cases and native protocol/annotation/replay cases pass; re-estimate integration after probes. |
-| M3 Model timing; physical extension deferred | Re-estimate; earlier 6–10 person-month range included physical work | Step 3: source/model provenance and hand-derived behavioral delay/constraint fixtures without PDK/STA/SDF. Step 4: revisit the earlier mapped-library/relative-STA/SDF extension and estimate it separately. |
-| M4a CPU performance | 3–5 person-months | Correct activity tracking, profile tooling, offline PGO, compile profiling, and bounded synchronous partition replication. Full-scan/thread equivalence and held-out benchmarks pass. Can slip independently of M4b. |
-| M4b SV coverage | 4–6 person-months | Expand elaboration/interfaces/memory coverage for selected Ibex/CVA6 and actual chip IP; executable feature matrix and diagnostic tests. No dependency on multithreaded execution. |
-| M5 Diagnostic depth | 3–5 person-months | Qualify remaining library protocols including native two-phase channels; scoped X-aware operators, digital metastability injection, arbitration exploration, DPI subset, and native checkpoints. Explicit unknown/foreign-state boundaries and replay tests pass. |
-| M6 V1 hardening | 4–6 person-months | End-to-end chip workload, SAIF/metrics, adapter/package reliability, documentation, compatibility and performance report. Release only supported platform/feature combinations; satisfy the frozen v1 gates or explicitly revise scope. |
-
-Earlier simulator planning envelope: **35–56 person-months** for the listed v1 scope, before separately scoping the expanded chisel-async product. At three engineers this was roughly **12–19 months** before integration contingency; approximately 25% gave **44–70 person-months**, or roughly **15–24 months** at that staffing. These are not updated estimates for the library-first program. Registry approvals, chip implementation/signoff, and a wholly new compiler backend are excluded. Re-estimate after L0 and M0, crediting reusable library work rather than blindly adding overlapping estimates.
+| Milestone | Deliverable and exit criterion |
+| --- | --- |
+| M0 Feasibility and contracts | Bounded Arc scheduling/packaging experiment, pinned traces and explicit reuse decision; optional ACT frontier assessed independently |
+| M1 Usable semantic core | Reference scheduler/JIT, clocked Chisel/SV, bounded testbench adapters, API/CLI/reports and clean native packages; required scheduling fixtures pass on all release platforms |
+| M2 Hybrid application | Native library bindings, four-phase and Click MCU variants, actual clocked boundaries, independent retirement/effect/boot references and reset/persistence cases |
+| M3 Model timing | Source/model provenance and hand-derived behavioral delay/constraint fixtures; no physical dependency |
+| M4a CPU performance | Activity/profiling/PGO and bounded parallelism only after full-scan equivalence and held-out measurements |
+| M4b SV coverage | Executable language feature matrix and selected external cores/IP; independent of threading |
+| M5 Diagnostic depth | Remaining library protocols, scoped X-aware behavior, arbitration exploration, foreign interfaces and checkpoints under separate contracts |
+| M6 Release hardening | Supported workload/platform matrix, adapters/packages, compatibility and honest correctness/performance reports |
+| EXT/FLW | Contracts → host/SDK → offline analyzer → capture/viewer → both MCU variants, following the [plugin increments](extensibility-flow-analysis.md#delivery-sequence-and-acceptance) |
 
 M1's UX work divides into independently tested core, adapter, and platform lanes; it cannot be reported complete on the strength of a Linux CLI alone. An early team alpha may ship a smaller explicitly labeled subset. M2 and the model-level part of M3 establish the functional MCU simulation workflow. M4a and M4b can proceed after their semantic prerequisites without waiting for physical implementation timing. Physical dependencies and mapped timing extensions wait for step 4; large-scale parallel async scheduling, coordinated ACT checkpoints and new accelerators remain separate later experiments.
 
-First implementation tasks are chisel-async L0: independently buildable library, pinned toolchain, typed channel/primitive contract, checked manifest emission and independent external-simulator tests including a deliberate failure. Complete L1/L2 and RISCay-MCU C0 before the main simulator. Then write Arc delta/phase litmus tests and optional ACT timestamp probes; demonstrate dual-language counters, simultaneous clocks and a pausable clock, and bind the already qualified async stages and MCU. No physical P1 probe is scheduled before step 4. Do not implement adaptive activity or a broad new IR before the functional experiments identify missing semantics.
+First simulator tasks are now pinned corpus import, Arc delta/phase litmus tests, dual-language counters, simultaneous/pausable clocks, and native async primitive comparisons. Evaluate optional ACT timestamp coordination separately. Establish correct observations and external agreement before adaptive activity or threading. The plugin lane begins with the [API](plugin-api.md), [schemas](graph-event-contract.md) and independently authored fixtures.
 
 ## Decisions to retain and questions to resolve experimentally
 
-The commitments are chisel-async first, RISCay-MCU second, Chiselator third, physical chip build fourth; first-class clocked support, interchangeable channel-based blocks, CIRCT-based native import, an optional ACT process, explicit time/state/effects, source/model timing intent, M1 ease of use, reproducible tests and transparent metrics. Simulator execution starts with CPU and later offline profiling. Physical feasibility, mapped implementation checks and their dependencies are deferred to step 4.
+Retain the four product responsibilities: library, MCU, simulator, physical implementation. The first two are built. Clocked and hybrid support, CIRCT import, optional ACT, explicit time/state/effects, model timing intent, reproducibility and transparent metrics remain commitments. CPU execution precedes profiling/parallel optimization; physical qualification remains independent.
 
-Current qualification decisions are the Arc integration point, optional ACT frontier API, functional tool revisions, schema encodings, later X-aware scope, staffing, packaging and final simulator name. Apache-2.0, native Windows/Linux/macOS core support, the hybrid language split and RISCay-MCU are settled. GF180MCU cells, synthesis/Yosys, STA and other physical choices are deferred to step 4 rather than awaiting answers now. Re-estimate simulator staffing after functional probes; plan physical staffing and dependencies when step 4 starts.
+Open simulator experiments are Arc reuse, optional ACT frontier coordination, exact frontend coverage, packaging and platform qualification, later X-aware scope, and measured optimization benefit. Apache-2.0, the Rust/C++ split, native platform targets and RISCay-MCU integration are settled directions. Physical target/tool decisions belong to the MCU flow. Re-estimate staffing after bounded probes rather than treating earlier ranges as a commitment.
 
 The main project risk is semantic scope: a very fast evaluator can still simulate the wrong circuit. The response is concrete release gates and observable traces. The main performance risk is that scheduler, cache, and synchronization costs dominate the work saved. The response is ablation and automatic retention of the simpler path where it wins. The main adoption risk is harness friction; the response is a small stable API and tested adapters with explicit compatibility limits.

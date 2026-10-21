@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chiselator:analysis:analysis-result:0.1.0",
+  "title": "Analysis terminal result",
+  "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "analysis_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "graph_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "COMPLETE",
+        "PARTIAL",
+        "UNSUPPORTED",
+        "CANCELED",
+        "ERROR"
+      ]
+    },
+    "plugin": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "plugin_package_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "configuration_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "decoder_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "metric_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "deterministic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "plugin_package_sha256",
+        "configuration_sha256",
+        "decoder_versions",
+        "metric_versions",
+        "deterministic"
+      ],
+      "additionalProperties": false
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "graph_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "events_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "graph_sha256",
+        "events_sha256"
+      ],
+      "additionalProperties": false
+    },
+    "window": {
+      "type": "object",
+      "properties": {
+        "start_fs": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "end_fs": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      },
+      "required": [
+        "start_fs",
+        "end_fs"
+      ],
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "definition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1
+          },
+          "window": {
+            "type": "object",
+            "properties": {
+              "start_fs": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "end_fs": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              }
+            },
+            "required": [
+              "start_fs",
+              "end_fs"
+            ],
+            "additionalProperties": false
+          },
+          "unit": {
+            "enum": [
+              "count",
+              "fs",
+              "count/fs"
+            ]
+          },
+          "status": {
+            "enum": [
+              "known",
+              "unknown"
+            ]
+          },
+          "numerator": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "denominator": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "samples": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "definition",
+          "scope",
+          "window",
+          "unit",
+          "status",
+          "samples"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "known"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "numerator",
+                "denominator"
+              ],
+              "not": {
+                "required": [
+                  "reason"
+                ]
+              }
+            },
+            "else": {
+              "required": [
+                "reason"
+              ],
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "numerator"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "denominator"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 0
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rule": {
+            "type": "string",
+            "minLength": 1
+          },
+          "classification": {
+            "enum": [
+              "observation",
+              "candidate",
+              "violation"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assumptions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "artifact": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "record": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "artifact",
+                "record"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "id",
+          "rule",
+          "classification",
+          "severity",
+          "message",
+          "assumptions",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9.-]+/[A-Za-z0-9_.-]+$"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "analysis_id",
+    "run_id",
+    "graph_id",
+    "status",
+    "plugin",
+    "provenance",
+    "inputs",
+    "window",
+    "metrics",
+    "findings",
+    "limitations",
+    "extensions"
+  ],
+  "additionalProperties": false
+}

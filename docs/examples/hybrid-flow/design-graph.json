@@ -1,0 +1,136 @@
+{
+  "schema_version": "0.1.0",
+  "graph_id": "g:receipt-example",
+  "model_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "domains": [
+    {
+      "id": "d:async",
+      "name": "async producer",
+      "kind": "async"
+    },
+    {
+      "id": "d:clk",
+      "name": "consumer",
+      "kind": "clock",
+      "edge": "rising"
+    },
+    {
+      "id": "d:reset",
+      "name": "coordinated transport reset",
+      "kind": "reset"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n:source",
+      "path": "top.source",
+      "kind": "component",
+      "domains": [
+        "d:async",
+        "d:reset"
+      ],
+      "ports": [
+        {
+          "id": "out",
+          "direction": "output"
+        }
+      ]
+    },
+    {
+      "id": "n:receipt",
+      "path": "top.receipt",
+      "kind": "boundary",
+      "domains": [
+        "d:clk",
+        "d:reset"
+      ],
+      "ports": [
+        {
+          "id": "in",
+          "direction": "input"
+        },
+        {
+          "id": "out",
+          "direction": "output"
+        }
+      ]
+    },
+    {
+      "id": "n:consumer",
+      "path": "top.consumer",
+      "kind": "component",
+      "domains": [
+        "d:clk",
+        "d:reset"
+      ],
+      "ports": [
+        {
+          "id": "in",
+          "direction": "input"
+        }
+      ]
+    }
+  ],
+  "channels": [
+    {
+      "id": "c:async",
+      "source": {
+        "node": "n:source",
+        "port": "out"
+      },
+      "sink": {
+        "node": "n:receipt",
+        "port": "in"
+      },
+      "protocol": "bd.four-phase.held-return@1",
+      "reset_domain": "d:reset",
+      "capacity_tokens": null,
+      "visibility": "complete",
+      "payload": {
+        "encoding": "bits",
+        "width_bits": 32
+      }
+    },
+    {
+      "id": "c:clocked",
+      "source": {
+        "node": "n:receipt",
+        "port": "out"
+      },
+      "sink": {
+        "node": "n:consumer",
+        "port": "in"
+      },
+      "protocol": "rv.sampled@1",
+      "reset_domain": "d:reset",
+      "clock_domain": "d:clk",
+      "capacity_tokens": null,
+      "visibility": "complete",
+      "payload": {
+        "encoding": "bits",
+        "width_bits": 32
+      }
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "b:receipt",
+      "node": "n:receipt",
+      "inputs": [
+        "c:async"
+      ],
+      "outputs": [
+        "c:clocked"
+      ],
+      "contract": "example.capture-receipt@1",
+      "storage_slots": 0,
+      "reset_domain": "d:reset",
+      "effect_reset_domain": "d:reset",
+      "mapping": "explicit",
+      "retains_effects_across_reset": false
+    }
+  ],
+  "extensions": {
+    "example/provenance": "Hand-authored synthetic model; zero model hash is a placeholder, not an RTL content hash."
+  }
+}

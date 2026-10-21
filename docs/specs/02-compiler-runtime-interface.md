@@ -2,6 +2,8 @@
 
 Draft, October 5, 2026. Status and scope: [specification index](README.md).
 
+The [logical graph export](../graph-event-contract.md#graph-record) is a public analysis projection, not a new HDL IR or a serialized MLIR object. Preserve logical identity and primitive/probe provenance separately from backend partitions and replicated kernels.
+
 ## Inputs and ownership
 
 Chisel elaborates through its pinned JVM toolchain and firtool. SystemVerilog enters through pinned circt-verilog/slang. Both paths use CIRCT normalization and a verified operation subset; accept only operations whose import, lowering, execution and negative tests pass. Clocked/pure logic may use HW/Comb/Seq; processes and timed effects require preserved LLHD semantics or an equivalent verified lowering. Arc reuse is conditional on the scheduling experiment, not assumed because import succeeds.

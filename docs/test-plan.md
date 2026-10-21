@@ -1,12 +1,12 @@
 # Chiselator simulator test plan
 
-Research and proposed implementation plan, updated October 5, 2026. This extends the [software architecture](software-architecture.md) and covers all 32 P0 requirements in the [MVP feature list](mvp-feature-list.md). **No simulator, test harness, or CI jobs described here are implemented yet.**
+Research and proposed implementation plan, integration status updated October 20, 2026. This extends the [software architecture](software-architecture.md) and covers all 32 P0 requirements in the [MVP feature list](mvp-feature-list.md). **The simulator, production test harness and CI jobs are not implemented.** The [draft analysis contract checks](schemas/README.md) now run locally; their narrow scope does not qualify simulator behavior.
 
 Treat Chiselator as a compiler, an event scheduler, a native runtime, and a developer product. Each needs its own evidence. The highest priority is an executable specification of observable behavior, an independently implemented small reference evaluator, and permanent regression cases. Optimization follows those foundations.
 
-The [five implementation specifications](specs/README.md) define the proposed contracts this plan validates. The four steps are chisel-async, RISCay-MCU verified externally, Chiselator, then physical chip build. Native Windows x86-64, Linux x86-64 and macOS arm64 are required simulator release lanes. Steps 1–3 require no Yosys, PDK or physical toolchain; the [step 4 backlog](chip-build-plan.md) defers all physical dependency decisions and qualification. Behavioral timing tests remain mandatory without claiming silicon accuracy.
+The [five implementation specifications](specs/README.md) define the proposed contracts this plan validates. The four steps are chisel-async, RISCay-MCU verified externally, Chiselator, then physical chip build. Native Windows x86-64, Linux x86-64 and macOS arm64 are required simulator release lanes. Steps 1–3 require no Yosys, PDK or physical toolchain; the [step 4 boundary](chip-build-plan.md) keeps physical dependencies and qualification separate. Behavioral timing tests remain mandatory without claiming silicon accuracy.
 
-Build and qualify [chisel-async](chisel-async.md) first, then RISCay-MCU on an existing simulator. Their independent references, external SV models and component/application corpus must be usable without Chiselator. When native bindings arrive, reuse those tests as independent evidence; do not redefine expected library or MCU behavior to match the new engine.
+Integrate the built [chisel-async](chisel-async.md) and [RISCay-MCU](async-mcu.md) corpus at the [pinned baseline](integration-status.md). Preserve independent references and external traces. Upstream tests are evidence inputs, not automatic native Chiselator qualification; do not redefine expected behavior to match the new engine.
 
 ## Quality contracts
 
@@ -106,7 +106,7 @@ Race-free tests expect exact equality. Tests intentionally exercising legal nond
 
 ### Library qualification before the simulator
 
-These suites qualify chisel-async's catalog and execution views, separately from simulator support. A later native binding must pass the existing cases plus the runtime suites below. Shared schemas may describe interface layout, but reference behavior must remain independently implemented.
+These suite families describe the library evidence consumed by simulator integration. Upstream owns its actual suite names, receipts and release matrix; do not rename these planning IDs into claims of completed library qualification. Native bindings must pass relevant independent cases plus the runtime suites below. Shared schemas describe layout, while reference behavior remains independently implemented.
 
 | Suite | Required evidence |
 | --- | --- |
@@ -114,7 +114,7 @@ These suites qualify chisel-async's catalog and execution views, separately from
 | LIB-02 Primitive behavior | Independent C-element/latch/delay/mutex/completion contracts, bounded exhaustive transitions, event/reset boundary traces and activated known-bad controls |
 | LIB-03 Composition and protocols | Four/two-phase channels, explicit converters, QDI validity/spacer, stage/FIFO capacity, fork/join pairing, routing/arbitration, clocked/CDC and memory/I/O contracts; exactly-once effects under backpressure/reset |
 | LIB-04 Timing and provenance | Stable primitive/endpoint IDs and manifest survive Chisel/CIRCT/RTL paths; dropped constraints fail; external timed views distinguish functional tests from characterized physical evidence |
-| LIB-05 Stack and platforms | Pinned Chisel/Scala/JDK/firtool and qualified external-simulator matrix on native Windows/Linux/macOS; later native/ACT/GPU lanes require actual backend evidence, not mocks or fallback |
+| LIB-05 Stack and platforms | Pinned Chisel/Scala/JDK/firtool and actual upstream external-simulator/platform evidence; current upstream macOS is deferred. Chiselator separately qualifies its promised Windows/Linux/macOS lanes. Native/ACT/GPU claims require actual backend evidence, not mocks or fallback |
 | LIB-06 Consumer packaging | Independently buildable library, bundled SV resources, local published artifact consumed by a clean sample, schema/version mismatch rejection, notices and upgrade/migration fixtures |
 
 Every required catalog row needs active checks and retained evidence, not merely a compiling declaration. Record planned/implemented/qualified/unsupported status by component, mode and backend. A missing future backend does not block the standalone external-simulator library release, but cannot be advertised as compatible. Full-stack compatibility requires all claimed lanes. No backend is the sole oracle for a library whose models it executes.
@@ -268,22 +268,22 @@ Run actual hardware tests before promoting GPU support. Mock executor tests can 
 | DUR-04 Compatibility | Previous supported report/API fixtures, incompatible model/cache rejection, upgrade/reinstall, optional dependency absence and pinned/upstream-canary toolchains. Never silently change replay semantics. |
 | PKG-01 Distribution | Clean native Windows x86-64, Linux x86-64 and macOS arm64 archive installs; no compiler/network/ACT/Yosys needed for built-in SV; separate JVM/Python lanes; relocation/uninstall/checksums/notices and declared system baselines. WSL is optional evidence only. |
 
-INT-02 integrates the separately maintained [Pi power-supervisor MCU](async-mcu.md) with Chiselator. Its RTL uses pinned chisel-async releases; its own repository owns firmware, board profiles and application fixtures. Pin all three project revisions in test manifests. The project owner will add the MCU and library repositories; their absence is pending implementation, not passing integration evidence. Keep independent ISA and supervisor references outside production behavior paths. Functional simulation does not depend on ACT or a PDK.
+INT-02 integrates the separately maintained [hybrid RV32E MCU](async-mcu.md). Pin the MCU, chisel-async and simulator revisions, firmware/profile, export contracts and reference tools. The repositories now exist with external tests; native S0 remains pending. Keep independent ISA/effect and boot/peripheral references outside production behavior paths. Functional simulation requires no ACT or PDK.
 
-The application suites below refine INT-02 and the release's complete-application gate. They do not add new simulator P0 feature IDs. MCU-01–04 run first externally at C0, then in Chiselator at S0, using the same firmware and equivalent observable contracts. MCU-05 and MCU-06 are deferred step 4 gates for real Pi compatibility and physical claims, not prerequisites for C0 or S0.
+The application suites below refine INT-02 without adding P0 requirement IDs. MCU-01–04 reuse externally checked behavior for native S0, with equivalent firmware and observation contracts. MCU-05 is application-specific board qualification; MCU-06 is physical qualification. Neither gates functional simulation.
 
 | Suite | Required evidence |
 | --- | --- |
-| MCU-01 Firmware and execution | RISC-V RV32E/C architectural and generated instruction tests use a qualified independent reference; cover registers, arithmetic, mixed instruction widths, memory/fault semantics and exactly-once MMIO effects. Linked supervisor firmware, helpers and worst-case stack fit measured budgets (provisional 2 KiB ROM/256-byte RAM); retirement, committed I/O and event wait/wake match the declared execution environment |
-| MCU-02 Normal power lifecycle | Cold boot/ready, button and scheduled wake, requested and OS-initiated shutdown, reboot and complete power cycle; independent policy oracle verifies late acknowledgement before switch-off |
-| MCU-03 Fault and timeout policy | Boot hang, stale/missing heartbeat, early/stale/absent shutdown acknowledgement, low supply, timer failure/overflow and bounded retries; forced-off never reports graceful completion |
-| MCU-04 Async and reset integrity | CPU reset preserves the declared retained enable state; reset in every relevant phase, simultaneous event/clear/wait, backpressure and replayed delay variation do not lose events or duplicate effects |
-| MCU-05 Real Pi integration | Versioned Pi/OS/kernel/overlay/board profile and real-board measurements qualify the simulated environment, wake/shutdown/reboot and electrical power-off behavior |
+| MCU-01 Firmware and execution | RV32E reference agreement for registers, arithmetic, 32-bit instructions, unsupported encodings, memory/fault semantics and exactly-once MMIO. Pin executable/working SRAM profile, boot images and firmware; measure stack/image bounds. Compressed instructions are absent from the current MCU |
+| MCU-02 Normal lifecycle | Boot/loader, A/B recovery selection, ordinary peripheral operations, independent timekeeping and wait/wake match the declared SoC/profile oracle |
+| MCU-03 Fault and timeout policy | Invalid images/CRC, absent flash or host, stale peripheral replies, watchdog/deadline cases and bounded recovery; incomplete work never reports success |
+| MCU-04 Async and reset integrity | Both BD/Click variants; actual sampling clocks, gates, backpressure, event/clear/wait races and reset phases. Separate response abort from accepted POR-owned persistent effects and verify exactly-once behavior |
+| MCU-05 Real-board application | Versioned board/firmware/peripheral profile and measurements; add Pi/OS/kernel/power-policy requirements only when that application is claimed |
 | MCU-06 Physical feasibility | Revised memory/control area estimate, mapped floorplan, preserved async constraints, routed timing/DRC/LVS and whole-supervisor power/reset/watchdog measurements before physical claims |
 
 The [step 4 PHY-01–06 suites](chip-build-plan.md#tests-and-evidence) retain view/preservation, physical relative timing, memory/boot, test/layout, reproducible handoff and board/silicon evidence for later. Their owners, dependencies and P1–P3 schedule will be addressed in step 4. None belongs to the 32 functional simulator P0 requirements. Do not require a physical stage fixture to pass functional release gates or claim physical closure from behavioral tests.
 
-Inject premature switch-off, a lost event and stale shutdown completion as negative controls and require the intended checker to fire. The Pi environment must include nonresponsive and delayed cases; an always-cooperative stub is insufficient. Compare deadline behavior against independent timer events, not CPU instruction counts. Sudden power loss without backup energy is not a graceful-shutdown promise. TIM-02 qualifies declared model timing; physical stage timing and revised area estimates wait for step 4.
+Inject lost/duplicated effects, stale responses, invalid boot images and missed watchdog deadlines; require the intended checker to fire. Test nonresponsive and delayed peripheral environments. Compare deadlines with independent timebase events, not CPU instruction counts. If a Pi supervisor firmware profile is claimed, add premature switch-off, stale shutdown acknowledgement and real-board controls separately. TIM-02 checks declared model timing; physical evidence remains separate.
 
 Run AddressSanitizer/UndefinedBehaviorSanitizer on C++ compiler/native components and leak checks where supported; use separately qualified Rust and mixed-language instrumentation lanes and a separate ThreadSanitizer build for supported concurrent paths. Pin compatible toolchains and document which modules are instrumented. ASan detects memory errors through compiler instrumentation and a runtime, while TSan targets data races. [ASan](https://clang.llvm.org/docs/AddressSanitizer.html), [TSan](https://clang.llvm.org/docs/ThreadSanitizer.html).
 
@@ -305,7 +305,7 @@ The [extensibility and hybrid flow analysis plan](extensibility-flow-analysis.md
 | PLG-02 Artifact contracts | Wrong input hashes, unknown graph IDs, missing endpoints, unsafe path references, schema mismatch, precision loss, dropped/duplicated/reordered events and reset epochs. Imported traces cannot cause automatic execution of a named plugin. |
 | PLG-03 SDK and portability | First-party native analyzer and separate minimal exporter use the same public contract on Windows/Linux/macOS. Test paths, relocation, dependency absence and prior supported schema fixtures; native execution/analysis works without Python/Node. |
 | PLG-04 Instrumentation | Capture on/off and supported optimization/backend variants preserve ordered circuit effects, values and random choices. Exercise zero-time transitions, same-time edges and bounded output pressure; measure capture time/storage and offline analysis costs separately. |
-| FLOW-01 Protocol decoding | Four-phase request/acknowledge lifecycle and clocked ready/valid sampling; repeated equal payloads, consecutive accepting edges with valid held high, configured edge polarity, reset aborts and invalid transitions. Unsupported two-phase/QDI or unknown contract versions cannot be accepted as a qualified decoder. |
+| FLOW-01 Protocol decoding | Four-phase lifecycle, sampled/held-offer clocked contracts and native Click parity for the second MCU variant; repeated equal payloads, valid withdrawal, consecutive accepting edges, edge polarity, reset/rebase and invalid transitions. Each decoder is separately qualified; unsupported QDI or unknown versions fail explicitly. |
 | FLOW-02 Metric arithmetic | Hand-derived offer/accept/complete counts, exact latencies, defined quantiles, time-weighted occupancy, initial tokens, full/empty duration, zero-duration windows and exact large timestamps. Every metric has units, denominator and sample count. |
 | FLOW-03 Hybrid boundaries | Async-to-async, clocked-to-clocked, async-to-clocked and clocked-to-async, including independent clocks, conversion buffers, reset and paused clocks. Preserve declared causal mappings; no invented global cycle count or physical metastability claim. |
 | FLOW-04 Observation completeness | Empty/incomplete traces, window-start transactions, pending end-of-run transactions, missing initial state, selective capture and truncated histories. Required missing data yields partial/error status or unavailable metrics, never healthy zeros or survivor-only latency claims. |
@@ -319,6 +319,21 @@ For a minimal arithmetic oracle, offer at tick 2, accept at tick 5 and return to
 Keep positive, negative and unknown-evidence controls paired. A plausible heatmap is not acceptance evidence. Simulated latency and host profiling use separate oracles, and a digital boundary fixture does not establish CDC or physical timing signoff. Tests involving forks/joins must reject timestamp-based or payload-based correlation when an explicit causal relationship is absent.
 
 Run schema/decoder/arithmetic fixtures on each relevant pull request, native host/plugin smoke tests in packaging lanes, and hybrid/large-trace/fault-injection cases nightly. Release candidates must pass PLG-01–04 and FLOW-01–08 for the advertised protocol/platform set. Apply the existing frozen-experiment, independent-review and known-bad-control requirements to these suites.
+
+### Draft contract kit and remaining conformance work
+
+The [schema kit](schemas/README.md) now includes five draft schemas, one hand-authored hybrid bundle, exact arithmetic controls and 14 local tests. This validates selected documentation invariants only; PLG/FLOW release suites are not implemented. Tests reject missing/invalid identities, future causal references, invalid lifecycle/clock/epoch records, time reversal, hidden capture gaps and numeric substitution for unknown metrics. A timestamp above 2^53 verifies lossless integer handling.
+
+| Release suite | Additional independent fixtures required |
+| --- | --- |
+| PLG-01/02 | RPC framing/version/error transcripts, crash/cancel races, path escape and output-hash faults, interrupted publication |
+| PLG-03/04 | Independent exporter through the same API; native packaging; capture on/off circuit/effect/random-choice agreement |
+| FLOW-01/03 | Raw four-phase and native Click transitions; sampled valid withdrawal; both bridge directions; real gated consumer clock; reset/rebase and accepted persistent work |
+| FLOW-02/04 | Offer cohorts and censoring, exact quantiles, initial occupancy, partial scopes, phase-unknown imports, counts versus rate denominators |
+| FLOW-05 | Fork/join overlap and shared prefix; alternative waits and external escapes; deadlock candidates distinguished from proof |
+| FLOW-06/07/08 | UI/report cross-selection, compatible-run comparison, both MCU variants and independent architectural/effect references |
+
+Use independent reference formulas and deliberate defects, not only schema round trips. A trace with plausible timestamps but a wrong capture edge must fail. A response aborted by application reset must not erase a valid POR-owned committed write. Keep native decoder and raw-probe acceptance separate from normalized-record validation.
 
 ## MVP requirement traceability
 
@@ -399,7 +414,7 @@ Each optimization also needs an off-switch ablation: same inputs and semantics, 
 
 ## Implementation sequence and required effort
 
-Start with chisel-async L0–L2 and LIB-01–06, then RISCay-MCU C0 with external MCU-01–04, before the main engine. Establish reference/trace infrastructure there, then reuse it during simulator M0/M1. Physical P1–P3 starts only in step 4. The estimates below are earlier engineering judgments for simulator validation infrastructure; they do not budget the expanded library, MCU, plugin/flow-analysis, physical or board work and must be re-estimated after the functional probes, with step 4 estimated later.
+The library/MCU build phases are complete upstream. Freeze reusable evidence and implement native reference/trace infrastructure next. Earlier effort estimates below exclude the added plugin/analysis scope and are not a current schedule; re-estimate after compiler/runtime and contract-host probes. Physical qualification remains separately owned.
 
 | Work package | Deliverable | Estimated effort |
 | --- | --- | --- |
@@ -413,4 +428,4 @@ Total initial planning range: **11–20 engineer-weeks**, excluding simulator im
 
 Infrastructure needs: native Linux x86-64, Windows x86-64 and macOS arm64 runners with locked dependencies, artifact storage, and an isolated endurance/performance host. Commercial simulator licenses are optional additional evidence, not a dependency of the initial public test suite. Preserve licenses/notices for imported test corpora. Re-estimate the earlier effort range after the three-platform build/JIT probes and MCU reference scope are established; that range is not a new commitment for the expanded release matrix.
 
-The immediate next implementation step is library L0: create its build/test skeleton, pin tool versions, emit one typed channel/primitive with a checked manifest, and execute independent positive and negative cases through an external simulator. Complete the library families before the main engine. Simulator qualification then starts with a counter, coincident-edge register swap, NBA re-entry, captured delayed assignment, canceled paused-clock edge, initialized C-element, repeated-payload handshake, and replayed seed. These small cases exercise the contracts before large CPU benchmarks make failures difficult to diagnose.
+The immediate simulator step is the native semantic vertical slice: a counter, coincident-edge register swap, NBA re-entry, captured delayed assignment, canceled paused-clock edge, initialized C-element, repeated-payload handshake and replayed choices. Integrate pinned upstream fixtures before large CPU benchmarks. In parallel, expand the draft analysis fixtures into actual RPC/decoder conformance tests; documentation checks alone cannot satisfy PLG/FLOW gates.

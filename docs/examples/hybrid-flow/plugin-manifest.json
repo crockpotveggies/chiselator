@@ -1,0 +1,54 @@
+{
+  "schema_version": "0.1.0",
+  "id": "org.chiselator.example-exporter",
+  "version": "0.1.0-draft",
+  "api_versions": [
+    "0.1.0"
+  ],
+  "artifact_versions": {
+    "graph": [
+      "0.1.0"
+    ],
+    "event": [
+      "0.1.0"
+    ],
+    "capture": [
+      "0.1.0"
+    ],
+    "result": [
+      "0.1.0"
+    ]
+  },
+  "roles": [
+    "exporter"
+  ],
+  "required_capabilities": [
+    "artifacts.local.read"
+  ],
+  "entrypoints": [
+    {
+      "platform": "windows-x86_64",
+      "executable": "bin/example-exporter.exe",
+      "args": [
+        "--stdio"
+      ]
+    },
+    {
+      "platform": "linux-x86_64",
+      "executable": "bin/example-exporter",
+      "args": [
+        "--stdio"
+      ]
+    },
+    {
+      "platform": "macos-arm64",
+      "executable": "bin/example-exporter",
+      "args": [
+        "--stdio"
+      ]
+    }
+  ],
+  "extensions": {
+    "example/status": "Manifest fixture only; these executables do not exist."
+  }
+}

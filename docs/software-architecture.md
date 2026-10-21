@@ -6,11 +6,13 @@ The [researched MVP feature list](mvp-feature-list.md) defines a proposed first-
 
 The [simulator test plan](test-plan.md) maps those requirements to semantic, differential, replay, integration, endurance, and packaging suites, with proposed CI gates and implementation effort.
 
-The [five implementation specifications](specs/README.md) refine this blueprint into proposed contracts and take precedence over overlapping sketches. The dependency order is chisel-async, RISCay-MCU, Chiselator, then physical chip implementation. Steps 1–3 target native Windows x86-64/Linux x86-64/macOS arm64 functional development with no Yosys, PDK or physical-build requirement. All physical dependency decisions and feasibility gates are deferred to the [step 4 backlog](chip-build-plan.md).
+The [five implementation specifications](specs/README.md) refine this blueprint and take precedence over overlapping sketches. The [current integration baseline](integration-status.md) supersedes old library/MCU build milestones: both products exist upstream. Chiselator targets native Windows x86-64, Linux x86-64 and macOS arm64, without a Yosys, PDK or physical-build dependency. Physical work is a separate [step 4 responsibility](chip-build-plan.md).
 
-Build [chisel-async](chisel-async.md) before the main simulator implementation. Its independent functional library, external simulation views and scientific test corpus establish the contracts that the runtime must preserve. The library is an independently designed evolution of async Chisel ideas, with its own release/versioning and completeness catalog; it is not a renamed upstream copy.
+Integrate the built [chisel-async library](chisel-async.md). Its pinned functional contracts, external simulation views and independent corpus establish behavior the runtime must preserve. The library owns its API and release evidence; this repository owns native adapter qualification.
 
-chisel-async and the [Raspberry Pi power-supervisor MCU](async-mcu.md) each have a dedicated repository to be added by the project owner. The library owns reusable components/SV views; the MCU owns RTL, firmware, board profiles and application/physical tests; Chiselator owns compilation, runtime and integration adapters. Integration manifests pin exact source/artifact and contract versions. Keep small shared/minimized fixtures or pinned corpus references here, not duplicate product implementations.
+chisel-async and [RISCay-MCU](async-mcu.md) have dedicated repositories. The library owns reusable components/views; the MCU owns RTL, firmware, profiles and application/physical tests; Chiselator owns compilation, runtime and integration adapters. Pin exact source/artifact and contract versions. Keep small minimized fixtures here, not duplicate product implementations.
+
+The [plugin API](plugin-api.md) specifies process framing, capabilities, jobs and artifact publication. The [graph/event contract](graph-event-contract.md) defines normalized records and transaction/effect identity across clocked/async boundaries; [algorithm decisions](flow-analysis-algorithms.md) separate topology, causal paths and observed waits. These refine the public analysis boundary without exposing the compiler IR.
 
 ## Architecture decisions
 
@@ -126,7 +128,7 @@ The [extensibility and hybrid flow analysis plan](extensibility-flow-analysis.md
 
 Runtime capture is selective and batched; mandatory monitors and the scheduler remain core-owned. Capture must retain required transitions before coalescing and cannot change circuit ordering or random choices. Plugin crashes and partial output have separate analysis outcomes. No Rust/C++ object layouts or MLIR handles cross this interface. Imported artifacts cannot select executables for automatic launch.
 
-The first plugin connects a component/channel graph, timeline and metrics table for fully clocked, fully async and hybrid circuits. Preserve clock/reset domains, protocol versions and converter/FIFO transaction relationships. Initial native analysis covers four-phase bundled data and declared clocked ready/valid channels, including their qualified boundaries; later encodings require their own qualification. High traffic is distinct from a bottleneck, and unknown wait causes remain unknown.
+The first plugin connects a component/channel graph, timeline and metrics table for fully clocked, fully async and hybrid circuits. Preserve clock/reset domains, protocol versions and converter/FIFO transaction relationships. The first native analysis slice covers four-phase and declared clocked interfaces; native Click follows for the second MCU variant. Each boundary/encoding needs its own qualification. High traffic is distinct from a bottleneck, and unknown wait causes remain unknown.
 
 Offline reports and basic compatible-run comparisons are part of the expanded first plugin release. Live delivery and a waveform IDE remain deferred. The plugin shares CLI/MCP jobs and report services, while physical tools such as Vivado remain step 4 adapters. PLG-01–04 and FLOW-01–08 in the [test plan](test-plan.md#extension-and-hybrid-flow-analysis-qualification) qualify the public boundary and measurements.
 
@@ -426,7 +428,7 @@ The developer build may link shared toolchain libraries. Release packaging bundl
 
 ## Implementation sequence and acceptance tests
 
-First complete [chisel-async L0–L2](chisel-async.md#library-first-delivery-sequence), then RISCay-MCU C0 on a qualified external simulator, then Chiselator. Neither earlier product waits for a Chiselator executable or a physical probe. Small compiler representability probes may run during functional work. The following are step 3 simulator work packages; they reuse the library/MCU corpus. The [physical delivery gates](chip-build-plan.md#product-order-and-physical-gates) and their dependencies all wait until step 4.
+The upstream library and MCU are built. Start step 3 with the [integration slices](integration-status.md#next-acceptance-slices), then the simulator work packages below. Historical C0 means external functional evidence; S0 means native Chiselator acceptance, still pending. Do not infer either gate from repository existence alone. [Physical delivery gates](chip-build-plan.md#product-order-and-physical-gates) remain independent.
 
 | Package | Concrete output | Completion test |
 | --- | --- | --- |
@@ -438,7 +440,7 @@ First complete [chisel-async L0–L2](chisel-async.md#library-first-delivery-seq
 | F Native async library integration | chisel-async primitive bindings, channel/manifest validation and initialized bits | Existing independently qualified stage corpus passes native backpressure/reset/repeated-data tests; uninitialized reads and invalid protocol transitions fail |
 | G Substitution and ACT | Behavioral/native/QDI bindings under one scoreboard | Transaction equivalence, absent-ACT native execution, precision errors and backend crash handling |
 | H Source-to-model timing | Preserved constraints and behavioral delay fixtures; no physical tools/views | Annotation loss fails; modeled short-control, slow-data and hold violations match hand-derived expectations |
-| I RISCay-MCU native acceptance | Integrate the separately maintained C0 RISC-V Pi supervisor (proposed RV32EC), its pinned firmware, library/views and external reference corpus | Run in Chiselator at S0; qualified RISC-V retirement/effect and power-policy references pass normal shutdown, wake, reset and fault scenarios without a global CPU clock; physical fit remains a separate gate |
+| I RISCay-MCU native acceptance | Integrate pinned RV32E BD and Click variants, firmware/profiles, library contracts and independent external references | Native S0: retirement/effects, boot, memory/peripherals, wait/wake, stopped clocks and reset/persistence agree; physical claims remain separate |
 | J Public analysis extensions and hybrid flow analysis | Versioned graph/events, supervised host, flow analyzer, local viewer and independent SDK consumer | PLG-01–04/FLOW-01–08 pass; known hybrid delay appears with evidence, missing capture stays visible, and instrumentation preserves semantics |
 
 Package J follows the core vertical slice and qualified protocol observations; its schema/hand-authored fixture work can accompany package A. Its analyzer/viewer effort is additional to earlier simulator estimates. The companion plan defines increments A–E for this package without changing the four-product dependency order.

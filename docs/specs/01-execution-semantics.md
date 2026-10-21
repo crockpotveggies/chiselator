@@ -2,6 +2,8 @@
 
 Draft, October 5, 2026. Status and scope: [specification index](README.md). This is a restricted simulation contract, not a claim of full SystemVerilog conformance. Implementation must tie each supported SV construct to the selected language edition and a directed fixture.
 
+Analysis observes these commits through the [public event contract](../graph-event-contract.md#event-envelope-and-ordering). Recording sequence does not establish causality; instrumentation must preserve scheduler choices and effects.
+
 ## Values and initialization
 
 Every value has an explicit width and signedness. Arithmetic wraps to the declared result width; extension, truncation and comparisons follow the normalized CIRCT operation. Shifts at or above the operand width return zero for logical shifts and sign fill for arithmetic right shifts. Host integer overflow, LLVM poison and Rust build mode must not determine results. Division by zero and invalid memory addresses produce explicit domain diagnostics in the supported two-state mode; unsupported language behavior must be diagnosed rather than advertised as full SV equivalence.

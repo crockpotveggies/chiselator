@@ -4,7 +4,7 @@ Research and recommendations. This is a proposed first-team MVP for the [simulat
 
 ## Recommended MVP
 
-Ship a local simulator that lets the team **install, run a small clocked, async or hybrid design from Chisel or SV, reproduce a failure, inspect waves and channel reports, and automate the same workflow through CI or MCP**. The first complete application is the [Raspberry Pi power-supervisor MCU](async-mcu.md), built using chisel-async and simulated in Chiselator. Its independent ISA and power-policy references check ROM/RAM, GPIO, event/timekeeping and shutdown/wake behavior. Demonstrate behavioral, QDI, bundled-data, and wrapped clocked implementations of a selected block under shared transaction tests.
+Ship a local simulator that lets the team **install, run a small clocked, async or hybrid design from Chisel or SV, reproduce a failure, inspect waves and channel reports, and automate the same workflow through CI or MCP**. The first complete application is the existing [RISCay-MCU](async-mcu.md): RV32E with four-phase and native Click variants and clocked service boundaries. Independent ISA/effect and boot/peripheral references check it. Application-specific power policy is an additional firmware profile, not a fixed simulator requirement.
 
 The expanded first-team release adds read-only analysis extensions and an offline hybrid flow plugin: a connected graph, transaction timeline and metrics table, with CLI/MCP results. These additions follow the native execution vertical slice and do not add dependencies to the earlier library/MCU work. Live dashboards and execution-changing plugins remain deferred.
 
@@ -12,9 +12,9 @@ Keep the native executable self-contained for SV and already-elaborated RTL. Chi
 
 The implementation uses the [hybrid Rust/C++ architecture](software-architecture.md#hybrid-implementation-language-contract). Rust and native compiler toolchains are build-time dependencies; users of the release binary need neither Cargo/rustc nor clang/g++ for built-in simulation. This language choice leaves the P0 feature scope unchanged.
 
-The proposed cut uses small supported language subsets, behavioral delay/constraint fixtures, bounded adapters, and native CPU archives for Windows x86-64, Linux x86-64 and macOS arm64. Broader installer/registry formats follow later. The sequence is chisel-async, RISCay-MCU, Chiselator, then physical chip build. Steps 1–3 exclude Yosys and physical-tool dependencies. PDK/cell selection, synthesis and mapped-netlist/STA/SDF qualification are deferred to [step 4](chip-build-plan.md), with no current tool decision required.
+The proposed cut uses small supported language subsets, behavioral delay/constraint fixtures, bounded adapters, and native CPU archives for Windows x86-64, Linux x86-64 and macOS arm64. Broader installer/registry formats follow later. The sequence is chisel-async, RISCay-MCU, Chiselator, then physical chip build. Steps 1–3 exclude Yosys and physical-tool dependencies. PDK, synthesis and mapped-netlist/STA/SDF qualification belong to the separate [step 4 flow](chip-build-plan.md); existing upstream physical exploration does not gate simulation.
 
-The first deliverable is the independent [chisel-async library](chisel-async.md), built and externally tested before the main simulator. Its completeness catalog is broader than the initial native simulator subset. Library release status and per-backend support are separate; a native release must state any unqualified library protocols rather than imply whole-stack compatibility. Existing simulator requirement IDs are retained; EXT and FLW add the extension/analysis requirements below.
+The independent [chisel-async library](chisel-async.md) is built and tested upstream. Its catalog is broader than the initial native simulator subset. Library release status and per-backend support remain separate; every unqualified protocol must be visible. Existing simulator requirement IDs are retained; EXT and FLW add analysis requirements below.
 
 Three categories separate evidence from product decisions:
 
@@ -61,7 +61,7 @@ The supported subset is pinned and machine-readable. The MVP is measured on smal
 | SIM-05 | Explicit value model | Two-state native execution with deterministic initialization and shadow initialized bits for primitives; never-reset reads fail. No claim of full X/Z support; ACT unknown crossings require a declared supported policy. |
 | SIM-06 | Native compilation and cache | Quick JIT, optional optimized build, content-aware invalidation; a clean host runs supported SV without clang/g++ and a changed include invalidates its cache. |
 | ASYNC-01 | chisel-async primitive integration | Integrate the independently released Chisel library and corresponding SV views for C-elements, latches, delays, mutex contracts and wrappers; validate semantic versions/manifest and require no handwritten C++ model for supported bindings. |
-| ASYNC-02 | Typed channels and substitution | Four-phase bundled-data and dual-rail QDI contracts, transaction IDs, reset/backpressure; one behavioral/QDI/bundled/clocked block shares one scoreboard. |
+| ASYNC-02 | Typed channels and substitution | Four-phase bundled-data, native Click for the second MCU variant, and scoped dual-rail QDI contracts; transaction IDs, reset/backpressure; one behavioral/QDI/bundled/clocked block shares one scoreboard. Each protocol/boundary is independently qualified. |
 | ASYNC-03 | Protocol diagnostics | Completion/spacer/dual-rail checks, invalid handshake sequence, stuck obligation and timeout distinction; injected protocol errors identify channel and transaction. |
 | ASYNC-04 | Seeded delay experiments | Deterministic and bounded random delays, explicit transport/inertial policies, independent seed sweeps; failed seeds reproduce and pulse/cancellation fixtures pass. |
 | ASYNC-05 | Optional ACT backend | Out-of-process adapter for one pinned ACT/actsim configuration; equal-time exchanges, backend failures and replay are tested. Native Chisel/SV works with ACT absent. |
@@ -190,7 +190,7 @@ Defer remote HTTP hosting, arbitrary live signal forcing, automatic RTL edits, t
 
 | Feature family | Priority | Why it waits |
 | --- | --- | --- |
-| Full four-state operators, native two-phase integration and richer metastability models | P1 | Two-phase belongs to chisel-async's functional catalog; native simulator support still needs its own qualification. Initialized-state checks bound the initial engine. |
+| Full four-state operators and richer metastability models | P1 | Initialized-state checks bound the initial engine. Native Click integration is now part of the existing MCU's P0 qualification; broader two-phase variants still require separate contracts. |
 | Source line/branch/toggle coverage, broader SVA, covergroups, UCIS interoperability | P1 | Valuable mainstream verification breadth; requires correct source mapping and sampling semantics |
 | DPI-C subset and expanded Verilator C++ compatibility | P1 | C ABI and simple wrappers come first; context, purity and threading contracts need dedicated tests |
 | Native checkpoints and restore | P1 | A seed replay is sufficient initially; correct snapshots must include queues, processes, monitors and random state |
@@ -212,8 +212,8 @@ The companion [simulator test plan](test-plan.md) maps all P0 requirements to co
 
 The MVP remains a substantial compiler/runtime project. Feature rows are acceptance contracts, not equally sized tickets or promises that familiar simulator features are cheap.
 
-1. **Build chisel-async first:** complete L0–L2 library contracts, components, external views and independent qualification. Pin the library toolchain and preserve CIRCT/RTL timing identities before committing its API.
-2. **Build RISCay-MCU second:** finish C0 firmware, RTL and independent ISA/power-policy qualification on an existing simulator using behavioral primitive/memory views. No physical feasibility gate applies.
+1. **Pin the built library:** freeze source/contracts and relevant external evidence; preserve timing and observation identities through import.
+2. **Freeze the built MCU corpus:** both RV32E variants, firmware/profile and independent ISA/effect/boot references. No physical feasibility gate applies.
 3. **Prove native semantics:** begin Chiselator; pin CIRCT/Arc and ACT versions, finish bounded scheduling/frontier experiments using the established corpus and publish supported operations.
 4. **Deliver the common workflow:** native clocked Chisel/SV, C API, minimal SV tests, CLI/jobs/cache, JSON results, waves and compiler-free release binary.
 5. **Integrate the async library and MCU:** channel substitution, native primitive bindings, optional ACT-backed QDI, randomized tests, pausable clocks and protocol reports; qualify the existing RISCay-MCU workload in Chiselator at S0.
@@ -227,7 +227,7 @@ The EXT/FLW lane starts schema/fixture work alongside native semantics and compl
 | Clean install | Each native archive runs SV fixtures without rustc, clang/g++, ACT, Yosys or network; real Windows/Linux/macOS install and semantic tests pass |
 | Dual-language clocked correctness | Counter, memory, reset, simultaneous clocks and paused-clock fixtures pass reference/external comparisons |
 | Mixed-style usefulness | One block substituted among behavioral, QDI, bundled and wrapped synchronous forms passes the same transaction tests under backpressure |
-| Complete async application | chisel-async Pi supervisor MCU runs in Chiselator and passes MCU-01–04: independent retirement/effect and power-policy traces, variable latency/backpressure, reset, stale acknowledgement and timeout cases. Real-board compatibility and physical fit have separate MCU-05/06 gates. |
+| Complete hybrid application | Existing RISCay-MCU runs in Chiselator and passes MCU-01–04 for qualified BD/Click variants: retirement/effects, boot/peripherals, variable latency/backpressure, clocks, reset and persistent work. MCU-05/06 remain separate board/physical gates. |
 | Real failure detection | Never-reset state, illegal handshake, lost annotation, zero-time nonconvergence, and violations of declared model timing produce expected diagnostics |
 | Reproduction | Selected failing seeds replay with matching artifact identities; changed inputs are rejected as exact replay |
 | Harness parity | C++/SV/cocotb/svsim see consistent defined observation points and outcomes |

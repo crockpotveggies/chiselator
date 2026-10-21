@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chiselator:analysis:plugin-manifest:0.1.0",
+  "title": "Installed analysis plugin manifest",
+  "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "api_versions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "artifact_versions": {
+      "type": "object",
+      "properties": {
+        "graph": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "event": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "capture": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "result": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "graph",
+        "event",
+        "capture",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "decoder",
+          "analyzer",
+          "exporter"
+        ]
+      },
+      "minItems": 1
+    },
+    "required_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "entrypoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "enum": [
+              "windows-x86_64",
+              "linux-x86_64",
+              "macos-arm64"
+            ]
+          },
+          "executable": {
+            "type": "string",
+            "minLength": 1
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "platform",
+          "executable",
+          "args"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9.-]+/[A-Za-z0-9_.-]+$"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "api_versions",
+    "artifact_versions",
+    "roles",
+    "required_capabilities",
+    "entrypoints",
+    "extensions"
+  ],
+  "additionalProperties": false
+}

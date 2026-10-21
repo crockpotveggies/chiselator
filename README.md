@@ -1,42 +1,26 @@
 # Chiselator
 
-Chiselator is the simulator in an open-source chip development stack. The delivery and dependency order is:
+Chiselator is the planned simulator for an open-source chip development stack. It will compile supported Chisel and SystemVerilog through CIRCT, with first-class clocked, asynchronous and hybrid execution. Rust owns the runtime and application; C++ integrates CIRCT/LLVM behind a versioned C interface. CPU execution comes first; GPU backends and ACT integration are optional, separately qualified paths.
 
-1. **chisel-async:** build and independently test the functional library.
-2. **RISCay-MCU:** build the RISC-V MCU with that library and verify it on an existing simulator.
-3. **Chiselator:** build our simulator and run the established library/MCU corpus.
-4. **Physical chip build:** later select and qualify synthesis, PDK, cell, layout and manufacturing dependencies.
+**Current status:** [chisel-async](https://github.com/BiscutLabs/chisel-async) and [RISCay-MCU](https://github.com/BiscutLabs/RISCay-MCU) are built in their own repositories. Chiselator has architecture documents and draft analysis schemas/fixtures, but no implemented simulator, plugin host or analyzer. The [integration baseline](docs/integration-status.md) records inspected revisions and remaining acceptance work.
 
-Steps 1–3 require no physical chip build, PDK or synthesis tool. Step 4 begins after functional acceptance in Chiselator; its dependencies will be addressed then. The simulator supports comparing QDI, bundled-data, and GALS implementations while retaining first-class support for ordinary clocked Chisel and SystemVerilog designs.
+1. **chisel-async:** reusable protocols, components, primitive/timing contracts and independent tests.
+2. **RISCay-MCU:** an RV32E application corpus with four-phase and native Click variants, including clocked service boundaries.
+3. **Chiselator:** compile and simulate the established corpus, then provide extensible graph and transaction analysis.
+4. **Physical implementation:** a separate ASIC/FPGA workflow and qualification boundary. MCU physical development already exists upstream; simulation requires no physical build, PDK or synthesis tool.
 
-The proposed architecture uses typed channels to exchange block implementations under shared tests, CIRCT-based compiled execution, an optional ACT/actsim process for QDI models, and explicit event semantics for both local clocks and asynchronous logic. Initial bundled-data verification checks behavior under declared timing assumptions; implementation-derived netlist/SDF and static timing validation are deferred to step 4.
+## Read the design
 
-The implementation plan combines a Rust runtime and application with a C++ CIRCT/LLVM compiler component behind a versioned C interface. Generated simulation kernels execute directly; built-in simulation does not require an installed Rust or C++ compiler.
+- [Documentation map](docs/README.md) and [software architecture](docs/software-architecture.md).
+- [Five semantic specifications](docs/specs/README.md), [MVP features](docs/mvp-feature-list.md) and [scientific test plan](docs/test-plan.md).
+- [Plugin API](docs/plugin-api.md): process lifecycle, version negotiation, artifact access and results.
+- [Graph/event schemas and transaction tracking](docs/graph-event-contract.md): clocked/async boundaries, fork/join, reset and persistent effects.
+- [Algorithm research and diagrams](docs/flow-analysis-algorithms.md): streaming decoding, causal latency, feedback/wait analysis and graph layout.
 
-**Status:** design proposal. No simulator or executable test suite is implemented yet.
+Native simulator releases are planned for Windows x86-64, Linux x86-64 and macOS arm64. Built-in simulation will not need an installed Rust/C++ compiler. Chisel elaboration still requires its JVM toolchain. These are release requirements, not current compatibility claims.
 
-**Build first: [chisel-async](docs/chisel-async.md).** Our independently designed Apache-2.0 Chisel async library will establish typed protocols, composable components, primitive/timing contracts and external-simulator tests before the main Chiselator implementation. Its completeness catalog covers bundled data, two-phase and four-phase handshakes, a defined QDI family, clocked boundaries and memory/I/O. Compatibility is qualified separately at each stack boundary.
+## Check the draft contracts
 
-The [chisel-async implementation plan](docs/chisel-async-implementation-plan.md) specifies the modern Chisel API/toolchain baseline, source-grounded improvements, component contracts and native CI. The dedicated [chisel-async repository](https://github.com/BiscutLabs/chisel-async) has executable behavioral, timing/compiler and clean-consumer foundations on Windows/Linux. External review identified an internal delay race in the custom structural controller; it is now withdrawn and retained only as a counterexample regression. The published controller replacement and cross-encoding probes are implemented. L0 / CA-01–05 is closed on native Windows/Linux after frozen candidate 2 acceptance and three scoped fresh-context agent reviews. Two export-validation gaps found during review were repaired and retested; the [library acceptance record](https://github.com/BiscutLabs/chisel-async/blob/main/docs/l0-acceptance.md) owns the evidence and limits. CA-06 now implements FIFO/initial tokens, fork/join/select/exclusive merge and feedback examples, with a passing full native Windows/Linux regression and published-JAR consumer. [Composition contracts and evidence](https://github.com/BiscutLabs/chisel-async/blob/main/docs/four-phase-composition.md) define the limits; [CA-07 arbitration and conversion](https://github.com/BiscutLabs/chisel-async/blob/main/docs/arbitration-and-two-phase.md) now implements two-client arbitration with explicit finite digital policies, typed two-phase composition through sequential adapters, two/four-phase converters, and the minimal bundled ↔ dual-rail pair. It proceeds at the user's direction while L1 review and held-out acceptance remain pending. The complete native Windows/Linux qualifier passes 5,454 CA-07 cases / 908,080 deliveries and twelve paired controls, with audited artifacts and clean-JAR replay; exact evidence remains in the library. macOS remains explicitly deferred; the library owns exact evidence and current status.
+See [schema validation](docs/schemas/README.md) for the dependency and commands. These checks validate documentation examples and selected semantic invariants; they do not execute RTL or qualify simulator accuracy.
 
-The first application is [RISCay-MCU](docs/async-mcu.md), a Raspberry Pi power supervisor: a clockless RISC-V core (proposed RV32EC) built with chisel-async, first verified on an existing simulator and later simulated in Chiselator. It has provisional 2 KiB program storage and 256 bytes RAM, independent timekeeping and external power-switch control. Firmware size and physical fit must be remeasured for RISC-V. chisel-async and RISCay-MCU are developed in separate repositories; Chiselator integrates pinned versions and qualification fixtures.
-
-The [step 4 backlog](docs/chip-build-plan.md) retains synthesis, physical async cells, memory implementation, hardware debug/test, physical timing, manufacturing and board bring-up work for later. There is no active physical feasibility probe or pending Yosys decision. Tool and process candidates are deferred research, not dependencies of steps 1–3.
-
-The [five implementation specifications](docs/specs/README.md) define execution semantics, the compiler/runtime interface, async model contracts, application lifecycle, and artifacts/compatibility. The first complete example will be a minimal Chisel async MCU. Native CPU releases target Windows x86-64, Linux x86-64 and macOS arm64, with no Yosys dependency. GF180MCU is a physical-process candidate to qualify separately from functional simulation.
-
-Read the [simulator design proposal](docs/simulator-proposal.md) for the review summary, architecture, clocked and async semantics, one-command user experience, validation gates, and staffing estimates.
-
-The [software architecture](docs/software-architecture.md) defines component ownership, the CIRCT-to-runtime boundary, execution-plan records, scheduler and kernel contracts, API sketches, repository layout, and the first implementation work packages. It includes CPU execution, optional GPU backends and independent simulation batches under shared semantic contracts; GPU support remains experimental and is not required for the MVP.
-
-The [extensibility and hybrid flow analysis plan](docs/extensibility-flow-analysis.md) adds a versioned analysis plugin interface and a first plugin for fully clocked, fully async and hybrid designs. It connects a logical graph, transaction timeline and metrics table to recorded evidence, with protocol-aware latency, traffic, buffering and wait analysis. Offline analysis comes first; live dashboards and execution-changing plugins remain separate later work.
-
-The researched [MVP feature list](docs/mvp-feature-list.md) compares established simulator capabilities and prioritizes execution, APIs, CLI, reports, installer binaries, MCP integration, and release acceptance tests. It proposes a smaller first-team release within the broader roadmap.
-
-The [simulator test plan](docs/test-plan.md) defines accuracy contracts, independent reference comparisons, deterministic replay, async timing checks, fuzzing, endurance and compatibility tests, and CI release gates for every P0 feature.
-
-Its [scientific qualification rules](docs/test-plan.md#scientific-method-and-limits-of-claims) require falsifiable claims, independent oracles, demonstrated checker activity, known-bad controls, frozen evaluation campaigns and honest uncertainty. Digital correctness, physical timing validity and performance receive separate evidence; passing tests alone cannot establish silicon accuracy.
-
-The first milestones build and independently qualify chisel-async, then RISCay-MCU on an external simulator. Chiselator work then timeboxes the Arc scheduling experiment and tests the ACT process boundary using that established corpus. M1 includes a self-contained simulator executable and familiar testbench adapters; the ordinary SV/Chisel path must work without ACT or an external C++ compiler. Beating GSIM is a later synchronous optimization goal.
-
-Chiselator is licensed under the [Apache License 2.0](LICENSE). Dependencies retain their own licenses. The final project name remains a review decision.
+Project code is licensed under [Apache-2.0](LICENSE). Dependencies retain their own licenses.

@@ -1,0 +1,41 @@
+{
+  "schema_version": "0.1.0",
+  "run_id": "r:synthetic",
+  "graph_id": "g:receipt-example",
+  "producer": {
+    "id": "fixture-author",
+    "version": "1",
+    "kind": "hand-authored"
+  },
+  "graph": {
+    "path": "design-graph.json",
+    "sha256": "40dc5c5aabdb67d609691bf9075c841193f6e19bdf158b6f43a20a39ddbbdc29",
+    "bytes": "2738",
+    "media_type": "application/json"
+  },
+  "events": {
+    "path": "flow-events.jsonl",
+    "sha256": "6d475f75f7584a88c42a200561e11387d68c707cc8a186d53ef7bacde493db61",
+    "bytes": "3146",
+    "media_type": "application/x-ndjson"
+  },
+  "window": {
+    "start_fs": "0",
+    "end_fs": "20000000"
+  },
+  "coverage": {
+    "channels": [
+      "c:async",
+      "c:clocked"
+    ],
+    "status": "complete",
+    "initial_state": "known-idle",
+    "phase_precision": "exact",
+    "gaps": []
+  },
+  "extensions": {
+    "example/evidence": {
+      "fixture-notes": "README.md"
+    }
+  }
+}

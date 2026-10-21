@@ -1,0 +1,5 @@
+# Exact fixture bytes are part of the documented reproducibility contract.
+docs/examples/** text eol=lf
+docs/schemas/*.json text eol=lf
+docs/images/*.svg text eol=lf
+tools/*.py text eol=lf

@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chiselator:analysis:design-graph:0.1.0",
+  "title": "Logical analysis graph",
+  "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "graph_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "clock",
+              "reset",
+              "async"
+            ]
+          },
+          "edge": {
+            "enum": [
+              "rising",
+              "falling",
+              "both"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "clock"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "edge"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "edge"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 0
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "component",
+              "boundary",
+              "memory",
+              "environment"
+            ]
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "direction": {
+                  "enum": [
+                    "input",
+                    "output"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "direction"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 0
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "artifact": {
+                "type": "string",
+                "minLength": 1
+              },
+              "line": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "artifact",
+              "line"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "kind",
+          "domains",
+          "ports"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "channels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "node": {
+                "type": "string",
+                "minLength": 1
+              },
+              "port": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "node",
+              "port"
+            ],
+            "additionalProperties": false
+          },
+          "sink": {
+            "type": "object",
+            "properties": {
+              "node": {
+                "type": "string",
+                "minLength": 1
+              },
+              "port": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "node",
+              "port"
+            ],
+            "additionalProperties": false
+          },
+          "protocol": {
+            "enum": [
+              "bd.four-phase.held-return@1",
+              "click.two-phase@1",
+              "rv.sampled@1",
+              "rv.held-offer@1"
+            ]
+          },
+          "reset_domain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "clock_domain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capacity_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visibility": {
+            "enum": [
+              "complete",
+              "partial",
+              "none"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "properties": {
+              "encoding": {
+                "enum": [
+                  "bits",
+                  "opaque"
+                ]
+              },
+              "width_bits": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              }
+            },
+            "required": [
+              "encoding",
+              "width_bits"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "sink",
+          "protocol",
+          "reset_domain",
+          "capacity_tokens",
+          "visibility",
+          "payload"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "protocol": {
+                  "enum": [
+                    "rv.sampled@1",
+                    "rv.held-offer@1"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "clock_domain"
+              ]
+            }
+          }
+        ]
+      },
+      "minItems": 0
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "node": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "contract": {
+            "type": "string",
+            "minLength": 1
+          },
+          "storage_slots": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "reset_domain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effect_reset_domain": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mapping": {
+            "enum": [
+              "explicit",
+              "fifo",
+              "tagged"
+            ]
+          },
+          "retains_effects_across_reset": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "node",
+          "inputs",
+          "outputs",
+          "contract",
+          "storage_slots",
+          "reset_domain",
+          "effect_reset_domain",
+          "mapping",
+          "retains_effects_across_reset"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9.-]+/[A-Za-z0-9_.-]+$"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "graph_id",
+    "model_sha256",
+    "domains",
+    "nodes",
+    "channels",
+    "boundaries",
+    "extensions"
+  ],
+  "additionalProperties": false
+}

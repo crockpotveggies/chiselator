@@ -1,6 +1,8 @@
 # 05 — Artifacts and compatibility
 
-Draft, October 5, 2026. Status and scope: [specification index](README.md). Names and versions below are proposed contracts to implement, not existing schemas.
+Draft, October 5, 2026; analysis contracts updated October 20. Status and scope: [specification index](README.md). Core simulator formats remain proposed; the separate analysis formats now have draft schemas.
+
+The [analysis schemas](../schemas/README.md) are draft 0.1.0 artifacts with exact-version negotiation. The [graph/event contract](../graph-event-contract.md) owns semantic IDs, coverage, per-channel epochs, cross-boundary links and separately owned effects. Its worked fixture and validation scripts do not establish production conformance.
 
 ## Identity and serialization
 

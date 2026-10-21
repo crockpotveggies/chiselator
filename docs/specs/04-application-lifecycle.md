@@ -2,6 +2,8 @@
 
 Draft, October 5, 2026. Status and scope: [specification index](README.md).
 
+The [detailed plugin API](../plugin-api.md) owns exact-version negotiation, stdio framing, capability checks, native process supervision, cancellation races and artifact publication. Analysis timeouts are ERROR with a structured reason, independently of simulation status.
+
 ## Session state machine
 
 | State | Allowed operations / transition |
