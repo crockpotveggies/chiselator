@@ -54,7 +54,7 @@ An import lacking phase/delta knowledge sets phase `unknown` and declares that l
 
 The draft normalized vocabulary is `transaction.offer`, `transaction.accept`, `transaction.complete`, `transaction.abort`, `transaction.transfer`, `boundary.link`, `effect.commit`, `clock.edge`, `domain.reset`, and `coverage.gap`. Source-level signal histories, queue observations and wait-reason probes will need separately versioned schemas before broader occupancy/wait metrics are implemented. The current fixture schema intentionally does not pretend to cover that future capture surface.
 
-Native observers publish at semantic commit points before event coalescing; they do not resample only once at the end of a timestamp. Runtime queues and event allocation are unaffected by observer enablement. For parallel kernels, deterministic semantic identities/order must be available before capture is merged.
+Native observers publish at required semantic commit points; they do not resample only once at the end of a timestamp. The [execution model](specs/06-execution-data-model.md#two-dispatch-mechanisms) may coalesce eligible pure-region activations, never required observed transitions. Observers consume commits rather than introducing simulated deliveries; their enablement must not change circuit semantics or random decisions. The compiled observation policy can constrain fusion/elimination and therefore change an eligible plan's layout or work count. For parallel kernels, deterministic semantic identities/order must be available before capture is merged.
 
 ## Transaction state and protocols
 

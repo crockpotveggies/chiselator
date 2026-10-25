@@ -1,6 +1,6 @@
 # 02 — Compiler/runtime interface
 
-Draft, October 5, 2026. Status and scope: [specification index](README.md).
+Draft, revised October 25, 2026. Status and scope: [specification index](README.md). The [execution data model](06-execution-data-model.md) specifies plan tables, session storage, activation/delivery separation and backend layout candidates.
 
 The [logical graph export](../graph-event-contract.md#graph-record) is a public analysis projection, not a new HDL IR or a serialized MLIR object. Preserve logical identity and primitive/probe provenance separately from backend partitions and replicated kernels.
 
@@ -23,14 +23,17 @@ C++ owns CIRCT/LLVM objects, passes, CPU code generation and initial ORC loading
 | Region | Kind, inputs/outputs, effects, dependency edges, kernel entry ID, activity policy |
 | Process/subscription | Continuation storage, wake conditions, generation-token ownership |
 | Driver | Destination, delay/value policy, allowed effects and cancellation owner |
+| Crossing | Region subscriptions, actual sampling clock and proven lookahead for scheduling; no added buffer or protocol state |
 | Primitive/binding | Model/version, parameters, ports, state layout and contract reference |
-| Channel/constraint | Semantic endpoints, protocol/reset rules, timing provenance |
+| Channel/constraint | Semantic endpoints, monitor-only protocol/reset rules, timing provenance; circuit state remains in RTL/qualified primitives |
 | Backend artifact/layout | Target, kernel ABI, code hash, checked offsets/sizes/alignment |
 | Debug map | Stable semantic IDs to source, hierarchy and optimized observations |
 
 Serialize IDs and offsets, never native pointers. Validate counts, widths, references, arithmetic bounds, storage overlap, entry-point kinds, subscriptions and capability requirements before loading executable code or calling a kernel. A model package containing executable objects is trusted local code; schema validation alone does not sandbox it.
 
 Logical identity is independent of partition and memory layout. CPU and future GPU variants may use different layouts and code, but preserve signal identities and semantics. Debug/provenance records must survive transformations; any removed observation is explicit and makes that variant ineligible when the observation is required.
+
+Regions and subscriptions are first-class indexed tables. The logical plan is immutable across sessions; backend variants add partitions, kernels and checked physical bindings. Per-session current/next storage, initialized/activity bits, continuations, wait/driver generations, clock pause state, reset epochs and keyed random counters are separate from the plan. Pending transitions belong to queues/calendar. Derived channel monitor state and append-only observations cannot drive circuit evaluation.
 
 ## Three versioned interfaces
 
@@ -63,7 +66,7 @@ The internal executor supports capability query, prepare, submit, collect, reque
 
 CPU is required and default. GPU is optional and initially targets independent run batches. Explicit unsupported GPU requests fail; an `auto` policy may choose CPU and record why. Never silently migrate a failing live device run. Per-session state, random streams and results are independent of lane assignment and batch size.
 
-Any backend must yield for earlier events, callbacks, reset or ACT interaction. It cannot round time, omit required pulses or overflow observation buffers silently. ACT selects an external model binding, independently of CPU/GPU placement. Native models must run with both GPU and ACT absent.
+Any backend must yield for earlier events, callbacks, reset or ACT interaction. It cannot round time, omit required pulses or overflow event/payload/observation buffers silently. Reserve capacity before an effect commits; a supported spill/growth protocol must retain the complete pending work and resume without duplicated effects, otherwise return an explicit error. ACT selects an external model binding, independently of CPU/GPU placement. Native models must run with both GPU and ACT absent.
 
 ## Optimization and build gates
 

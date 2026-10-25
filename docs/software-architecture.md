@@ -6,7 +6,7 @@ The [researched MVP feature list](mvp-feature-list.md) defines a proposed first-
 
 The [simulator test plan](test-plan.md) maps those requirements to semantic, differential, replay, integration, endurance, and packaging suites, with proposed CI gates and implementation effort.
 
-The [five implementation specifications](specs/README.md) refine this blueprint and take precedence over overlapping sketches. The [current integration baseline](integration-status.md) supersedes old library/MCU build milestones: both products exist upstream. Chiselator targets native Windows x86-64, Linux x86-64 and macOS arm64, without a Yosys, PDK or physical-build dependency. Physical work is a separate [step 4 responsibility](chip-build-plan.md).
+The [six implementation specifications](specs/README.md) refine this blueprint and take precedence over overlapping sketches. The [current integration baseline](integration-status.md) supersedes old library/MCU build milestones: both products exist upstream. Chiselator targets native Windows x86-64, Linux x86-64 and macOS arm64, without a Yosys, PDK or physical-build dependency. Physical work is a separate [step 4 responsibility](chip-build-plan.md).
 
 Integrate the built [chisel-async library](chisel-async.md). Its pinned functional contracts, external simulation views and independent corpus establish behavior the runtime must preserve. The library owns its API and release evidence; this repository owns native adapter qualification.
 
@@ -19,6 +19,8 @@ The [plugin API](plugin-api.md) specifies process framing, capabilities, jobs an
 Build a modular application with a self-contained CPU executable as the default distribution. Use CIRCT/MLIR for shared native compilation, LLVM for CPU machine code, and an explicit event contract shared by clocked and asynchronous designs. Preserve an optional GPU execution backend and keep ACT in an optional separate process. A standalone clocked Chisel or SV design does not require channel wrappers, ACT, or GPU libraries/drivers.
 
 The central boundary is a compiled model: **backend executable artifacts plus an immutable execution plan**. The CPU realization contains native kernels; a future GPU realization may use device kernels or a mapped Boolean program. The compiler determines what can run together; the runtime determines when it may run. Channel contracts sit above circuit execution and let a testbench substitute behavioral, QDI, bundled-data, or wrapped synchronous implementations.
+
+The [execution data model](specs/06-execution-data-model.md) makes regions and subscriptions first-class. Exact timed deliveries and ordered effects coexist with inexpensive, coalescible activations for eligible pure logic in both clocked and async regions. The 20× Verilator ambition is an unmeasured performance objective, separate from the earlier release gate and split into [single-run and batch comparisons](test-plan.md#controlled-performance-experiments).
 
 | Decision | Implementation consequence | Status |
 | --- | --- | --- |
@@ -160,7 +162,7 @@ Use internal operations equivalent to `query_capabilities`, `prepare`, `submit`,
 
 The CPU backend may complete inline. A GPU backend may return a completion token and retain device-resident state. Host reads and callbacks occur only after the required completion/publication boundary. Backend buffers are opaque; kernels receive explicit typed bindings and declared effects rather than a universal host pointer or arbitrary C++ callback. The public session API remains independent of device memory and driver types.
 
-Separate logical signal/state IDs from physical layout. CPU plans may use per-session aligned words; GPU batch plans may place one signal across many sessions in adjacent storage. Preserve widths, masking, initialization and source mapping in both. Per-session state, memory contents and event queues count toward the batch's memory budget; no fixed batch size is promised.
+Separate logical signal/state IDs from physical layout. CPU plans may use per-session aligned words; GPU batch candidates use lane-contiguous `values[word][lane]`, corresponding staging arrays and region activity masks across lanes. Preserve widths, masking, initialization and source mapping in both. Per-session state, memory contents and event queues count toward the batch's memory budget; no fixed batch size is promised. [Spec 06](specs/06-execution-data-model.md#cpu-and-gpu-layouts) owns layout and bounded-queue experiments, including ring wrap, far-future delivery and overflow recovery.
 
 Batch only compatible models and execution/observation policies. Give every session a stable identity, seed streams, logical time, pending events, limit and terminal result. A completed, failed or canceled session cannot affect another session's data or random choices. Compaction or rescheduling maps physical lanes back to stable session IDs. CPU job concurrency, GPU batch width and future within-session threading are separate controls.
 
@@ -174,7 +176,7 @@ Keep state resident and exchange bounded batches where possible. Observation buf
 
 ### Experimental scope and evidence
 
-The first experiment compares a clocked datapath and a small bundled-data pipeline across increasing numbers of independent runs. Measure cold preparation, warm execution, transfers, checks, reports, peak device/host memory and complete test turnaround against equivalent parallel CPU runs. Use exact comparisons for deterministic cases and replayed legal choices for nondeterministic ones. A GPU backend enters a supported release only after capability, differential, replay, cancellation and failure tests pass on its declared device/driver matrix.
+The first experiment compares a clocked datapath and a small bundled-data pipeline across increasing numbers of independent runs. Shared clock schedules reduce scheduling divergence but do not remove data-dependent branches, differing activity or memory access divergence. Async runs retain independent time and event sequences; regrouping lanes by ready work is a measured experiment. For the small RISCay-MCU, prioritize seed/delay batch throughput; single-design GPU benefit remains unestablished. Measure cold preparation, warm execution, transfers, checks, reports, peak device/host memory and complete test turnaround against equivalent parallel CPU runs. Use exact comparisons for deterministic cases and replayed legal choices for nondeterministic ones. A GPU backend enters a supported release only after capability, differential, replay, cancellation and failure tests pass on its declared device/driver matrix.
 
 RTLflow provides prior art for stimulus-level batching. GEM provides prior art for mapping a design to a GPU-executed Boolean processor; its documented workflow excludes latches and other asynchronous sequential logic and requires noninteractive stimuli. Neither establishes our async semantics. MLIR GPU infrastructure is a possible lowering tool, not a ready-made simulator. [RTLflow paper](https://tsung-wei-huang.github.io/papers/icpp22-rtlflow.pdf), [GEM workflow](https://github.com/NVlabs/GEM/blob/staged-aig-release/usage.md), [MLIR GPU dialect](https://mlir.llvm.org/docs/Dialects/GPU/).
 
@@ -209,7 +211,7 @@ Observation policy is a compiler input. A transaction-only run may eliminate int
 
 ## Compiled model and execution plan
 
-Maintain a clear distinction between immutable program data and per-run state. One compiled model can serve many independent seeded sessions.
+Maintain a clear distinction between immutable program data and per-run state. One compiled model can serve many independent seeded sessions. The detailed [plan and session model](specs/06-execution-data-model.md#immutable-plan-and-backend-layout) separates common logical tables from each backend's layout/partition overlay.
 
 | Record | Main fields | Invariant |
 | --- | --- | --- |
@@ -221,7 +223,8 @@ Maintain a clear distinction between immutable program data and per-run state. O
 | `MemoryDescriptor` | Geometry, ports, latency, collision behavior | Host worker order never selects collision behavior |
 | `RegionDescriptor` | Kind, kernel ID, inputs/outputs, trigger, effects, policy | Pure and side-effecting work are distinguished |
 | `Subscription` | Source, value/edge predicate, destination, scheduling action | Wakeup conditions are complete |
-| `ChannelDescriptor` | Semantic ID, payload, protocol, endpoint mapping, reset, obligations | Encoding adapters satisfy the same transaction contract |
+| `CrossingDescriptor` | Region kinds, subscribed signals, sampling clock, proven lookahead | Scheduling metadata adds no buffering or handshake state |
+| `ChannelDescriptor` | Semantic ID, payload, protocol, endpoint mapping, reset, obligations | Monitor-only metadata; circuit storage/capture lives in RTL or qualified bindings |
 | `ConstraintDescriptor` | Semantic ID, launch/endpoints, relation, margin intent, provenance | Survives lowering or produces a diagnostic |
 | `DebugMap` | Runtime IDs to source, hierarchy, semantic IDs | IDs are reproducible within the artifact |
 
@@ -235,13 +238,13 @@ LLVM ORC is the proposed CPU JIT integration. Cache relocatable objects and meta
 
 ## Runtime and scheduler
 
-Each `SimulationSession` owns logical time, state storage, process continuations, queues, driver transactions, activation generations, random streams, and monitor state. The baseline has one coordinator thread and no shared mutable circuit state across independent sessions. Multiple sessions can share immutable code and backend resource pools with explicit lifetimes. Device execution is subordinate to the session's authorized frontier; it does not introduce a second definition of time.
+Each `SimulationSession` owns logical time, current values and next-state staging, initialized/activity bits, process continuations/waits, queues, driver cancellation generations, clock pause state, reset epochs, keyed random counters, and monitor state. Pending transitions reside in queues/calendar. Channel monitors derive their state from commits; kernels cannot read it. The baseline has one coordinator thread and no shared mutable circuit state across independent sessions. Multiple sessions can share immutable code and backend resource pools with explicit lifetimes. Device execution is subordinate to the session's authorized frontier; it does not introduce a second definition of time.
 
 Use `TimePoint { ticks, delta, phase }` for reporting logical execution position. Use checked integer physical time with a declared resolution, initially femtoseconds for the Arc adapter. Check conversion and addition for overflow; represent “no next event” as a tagged value rather than consuming a valid timestamp. Delta count and phase remain explicit even when a backend represents physical time with one integer.
 
 ### Queue discipline
 
-Maintain distinct active/reactive work, inactive zero-delay process resumptions, pending nonblocking updates, harness callbacks, and a heap of future physical-time events. Region dirty flags deduplicate eligible pure reevaluation; they do not deduplicate delayed signal transactions or process side effects.
+Maintain distinct active/reactive work, inactive zero-delay process resumptions, pending nonblocking updates, harness callbacks, and a heap of future physical-time events. A separate managed-clock calendar can avoid general-queue operations while preserving edge semantics. Region dirty flags deduplicate eligible pure reevaluation in clocked and async regions; they do not deduplicate delayed transactions, sensitive same-tick pulses or process side effects. Current-time req/ack changes and register commits dispatch subscriptions without automatically allocating future events.
 
 The initial supported scheduler subset follows these rules:
 
@@ -258,9 +261,9 @@ Two ordering fixtures define essential behavior. For `q <= d` on an edge, `d` is
 
 ### Event and driver records
 
-An event carries physical target time, destination, event kind, source ordering identity, captured payload, and optional cancellation token. Driver queues preserve multiple transitions. An inertial primitive owns its cancellation rule; a transport primitive preserves its transition sequence. Do not recompute an event's payload from later signal state.
+An event carries physical target time, destination, event kind, source ordering identity, captured payload, and optional cancellation token. Future records do not preassign delta: the phase state machine assigns the execution frontier as deliveries are processed. Driver queues preserve multiple transitions. An inertial primitive owns its cancellation rule; a transport primitive preserves its transition sequence. Do not recompute an event's payload from later signal state.
 
-Clock sources use the same event mechanism. Pausing a source cancels only its future transitions through generation-tagged tokens; already delivered edges remain delivered. Reset can run while a clock is paused. Toggling or resuming a clock is not equivalent to advancing a fixed number of global cycles.
+Clock sources use the same delivery semantics, with optional specialized calendar storage. Pausing a source cancels only its future transitions through generation-tagged tokens; already delivered edges remain delivered. Reset can run while a clock is paused. Toggling or resuming a clock is not equivalent to advancing a fixed number of global cycles. A [guarded clocked loop](specs/06-execution-data-model.md#fast-clocked-loop) preserves coincident sampling, downstream async reactions and every required frontier while bypassing general-queue operations.
 
 Subscriptions and process resume tokens prevent an old timeout or obsolete sensitivity registration from waking a process after it has moved to a different wait. Re-arm and cancellation behavior is part of the process contract and is tested independently of generated code.
 

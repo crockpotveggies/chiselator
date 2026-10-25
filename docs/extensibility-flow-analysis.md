@@ -2,7 +2,7 @@
 
 Chiselator will expose a versioned tool-extension interface. The first plugin explains traffic, waiting and bottleneck candidates in clocked, async and hybrid designs through a connected graph, transaction timeline and metrics table. The host/analyzer/viewer remain proposed. Draft schemas and a small checked example now exist.
 
-This overview owns product scope. Detailed contracts now live in the [plugin API](plugin-api.md), [graph/event schema](graph-event-contract.md) and [algorithm research](flow-analysis-algorithms.md), avoiding duplicate interface specifications here. The [five specifications](specs/README.md) continue to own circuit semantics. The [current stack baseline](integration-status.md) records the built library and MCU inputs.
+This overview owns product scope. Detailed contracts now live in the [plugin API](plugin-api.md), [graph/event schema](graph-event-contract.md) and [algorithm research](flow-analysis-algorithms.md), avoiding duplicate interface specifications here. The [six specifications](specs/README.md) continue to own circuit semantics. The [current stack baseline](integration-status.md) records the built library and MCU inputs.
 
 ## Product outcomes and first release
 

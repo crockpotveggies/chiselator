@@ -1,6 +1,6 @@
 # Chiselator simulator design proposal
 
-Draft for architectural review. Original research revised October 5, 2026; product status and analysis interfaces refreshed October 20, 2026.
+Draft for architectural review. Original research revised October 5, 2026; product status and analysis interfaces refreshed October 20; execution model and performance claims revised October 25, 2026.
 
 The companion [software architecture](software-architecture.md) translates this proposal into component boundaries, data contracts, runtime interfaces, and an implementation sequence.
 
@@ -10,9 +10,11 @@ The companion [software architecture](software-architecture.md) translates this 
 
 Build a tool for one team's clockless async chip, open to others through a public repository, usable releases, and documented extensions. Compare QDI (quasi-delay-insensitive), bundled-data, and GALS (globally asynchronous, locally synchronous) implementations of the same function under shared channel tests. **Clocked support remains first-class:** standalone synchronous designs, conventional clocked IP, multiple clock domains, and pausable local clocks are required. An all-clocked design needs neither async wrappers nor ACT to run.
 
-Use explicit events, state, and timing as the semantic foundation; compile synchronous regions into specialized fast paths. Reuse CIRCT/Arc where a timeboxed experiment establishes correct scheduling. Keep project-specific passes out of tree initially. Use an optional ACT/actsim process for CHP/production-rule QDI models, while native Chisel/SV async primitives work without ACT. Steps 1–3 extract relative-timing intent and check behavior under declared model delays; mapped-netlist/SDF/static-timing qualification waits for step 4.
+Use explicit state, timing and ordered effects as the semantic foundation. Exact timed deliveries coexist with cheap region activations for eligible zero-delay logic, including async logic; compile synchronous regions into guarded fast paths. The [execution data model](specs/06-execution-data-model.md) defines this separation. Reuse CIRCT/Arc where a timeboxed experiment establishes correct scheduling. Keep project-specific passes out of tree initially. Use an optional ACT/actsim process for CHP/production-rule QDI models, while native Chisel/SV async primitives work without ACT. Steps 1–3 extract relative-timing intent and check behavior under declared model delays; mapped-netlist/SDF/static-timing qualification waits for step 4.
 
 M1 includes a one-command experience and a self-contained simulator executable with no external C++ compilation for the built-in SV/compiled-RTL path. Standard testbench adapters and packaging have explicit acceptance tests. The v1 synchronous performance target is faster than Verilator and within 20% of design-appropriate GSIM throughput on a frozen overlapping suite; beating GSIM is a stretch goal. These are proposed release gates, not measured results.
+
+The project's **20× Verilator ambition** is a separate stretch hypothesis, not a restatement of the 20% GSIM margin or a consequence of the data model. State it per design and pinned baseline, reporting single-run clocked speed, hybrid/async speed and independent-run batch throughput separately. Retain the earlier release gate while evaluating that ambition under the [controlled performance protocol](test-plan.md#controlled-performance-experiments).
 
 **Decisions requested from reviewers:**
 
@@ -41,7 +43,7 @@ Use a hybrid implementation: Rust for the runtime, scheduler, primitives, channe
 
 Pin Rust/Cargo dependencies alongside the native compiler toolchain, and validate the mixed build, ABI and code lifetimes in M0/M1. CPU execution is the baseline; optional GPU backends use the same semantic contracts with target-specific layouts and code. Required native releases target Windows x86-64, Linux x86-64 and macOS arm64. WSL is optional and cannot substitute for Windows qualification. The repository has documentation and a license, not an implemented simulator.
 
-The [five implementation specifications](specs/README.md) refine this proposal. The existing first application is the hybrid RV32E RISCay-MCU, in four-phase and native Click variants. No Yosys, PDK or physical build is required. [Physical tool choices](chip-build-plan.md#synthesis-decision) remain separately owned; simulator release gates use declared-model evidence.
+The [six implementation specifications](specs/README.md) refine this proposal. The existing first application is the hybrid RV32E RISCay-MCU, in four-phase and native Click variants. No Yosys, PDK or physical build is required. [Physical tool choices](chip-build-plan.md#synthesis-decision) remain separately owned; simulator release gates use declared-model evidence.
 
 ## Evidence and corrections to the supplied analysis
 
@@ -438,9 +440,20 @@ Proposed performance objectives are decision gates, not predictions:
 
 - V1 synchronous target: geometric-mean throughput faster than pinned Verilator and at least 0.80× the design-appropriate GSIM baseline on a frozen, representative overlapping suite, using comparable thread budgets. Require the gain over Verilator to exceed measurement uncertainty; report every design ratio and investigate outliers. The 20% margin is a proposed budget to approve before tuning, not a measured capability.
 - Later stretch goal: exceed GSIM on the same held-out synchronous suite; evaluate activity optimizations and threads independently.
+- Strategic 20× ambition: measure per-design single-run speed against pinned single-threaded Verilator, disclosing Chiselator's thread budget and also reporting matched-resource comparisons. Hybrid/async and CPU/GPU batch claims use their own qualified baselines below; no flat 20× claim spans these categories. A data layout or theoretical parallelism estimate is not performance evidence.
 - Parallel experiment: at least 2× versus Chiselator's own best single-thread mode on selected sufficiently large designs at eight physical cores, reporting exceptions and barrier cost. This lane can slip independently of language coverage.
 - Turnaround experiment: at least 2× lower cold time to first correct result versus the measured GSIM-plus-C++ pipeline on the selected large design, while reporting total optimized build cost and memory.
 - Async functional release: zero unexplained transaction mismatches, detection of deliberately injected supported protocol/model-timing violations, validated constraint extraction and complete seed replay. Use a comparable declared-model baseline for throughput. Mapped physical timing qualification is a separate step 4 gate.
+
+Keep three result categories:
+
+| Category | Required baseline and scope |
+| --- | --- |
+| Single-run clocked | Pinned single-threaded Verilator per design/workload; disclose timing mode, candidate threads and equal-work/observation settings. Report parallel scaling separately |
+| Single-run hybrid/async | Same supported model and delay semantics; name Verilator `--timing` when required and its exact revision/options, plus another qualified comparator where feasible. A large ratio against this mode alone does not establish general superiority over async/event simulators |
+| Independent-run batch | Same cases/seeds and completion work against an equivalent parallel CPU batch with disclosed resources; include preparation, transfers, reports and per-case latency. Aggregate throughput is not single-run speed |
+
+For context, the GSIM paper reports 19.94× on Rocket/CoreMark and 7.34× on XiangShan/Linux against its single-threaded Verilator baseline, using Verilator 5.026. These are workload-specific historical results, not measurements of Chiselator or current Verilator. Multiplying those historical ratios by 0.80 would give about 16× and 5.9× under those same conditions; it neither predicts our results nor converts a suite-level gate into a per-design guarantee. [GSIM evaluation](https://arxiv.org/html/2508.02236v1).
 
 Use ablations to attribute gains to flag correctness, adaptive evaluation, partitioning, scanning, outlining, code sharing, and threading. A benchmark beating uncorrected GSIM primarily because of a flag bug is not evidence of a better architecture.
 

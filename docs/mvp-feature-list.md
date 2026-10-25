@@ -1,6 +1,6 @@
 # Simulator research and MVP feature list
 
-Research and recommendations. This is a proposed first-team MVP for the [simulator proposal](simulator-proposal.md) and [software architecture](software-architecture.md), refined by the [five implementation specifications](specs/README.md) and the [extensibility and hybrid flow analysis plan](extensibility-flow-analysis.md). Every Chiselator feature below is planned, not implemented.
+Research and recommendations. This is a proposed first-team MVP for the [simulator proposal](simulator-proposal.md) and [software architecture](software-architecture.md), refined by the [six implementation specifications](specs/README.md) and the [extensibility and hybrid flow analysis plan](extensibility-flow-analysis.md). Every Chiselator feature below is planned, not implemented.
 
 ## Recommended MVP
 

@@ -12,7 +12,8 @@ Chiselator is the planned simulator for an open-source chip development stack. I
 ## Read the design
 
 - [Documentation map](docs/README.md) and [software architecture](docs/software-architecture.md).
-- [Five semantic specifications](docs/specs/README.md), [MVP features](docs/mvp-feature-list.md) and [scientific test plan](docs/test-plan.md).
+- [Hybrid execution data model](docs/specs/06-execution-data-model.md): exact deliveries, region activations, CPU/GPU layouts and measured performance goals.
+- [Six implementation specifications](docs/specs/README.md), [MVP features](docs/mvp-feature-list.md) and [scientific test plan](docs/test-plan.md).
 - [Plugin API](docs/plugin-api.md): process lifecycle, version negotiation, artifact access and results.
 - [Graph/event schemas and transaction tracking](docs/graph-event-contract.md): clocked/async boundaries, fork/join, reset and persistent effects.
 - [Algorithm research and diagrams](docs/flow-analysis-algorithms.md): streaming decoding, causal latency, feedback/wait analysis and graph layout.

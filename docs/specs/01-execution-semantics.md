@@ -1,6 +1,6 @@
 # 01 — Execution semantics
 
-Draft, October 5, 2026. Status and scope: [specification index](README.md). This is a restricted simulation contract, not a claim of full SystemVerilog conformance. Implementation must tie each supported SV construct to the selected language edition and a directed fixture.
+Draft, revised October 25, 2026. Status and scope: [specification index](README.md). This is a restricted simulation contract, not a claim of full SystemVerilog conformance. Implementation must tie each supported SV construct to the selected language edition and a directed fixture.
 
 Analysis observes these commits through the [public event contract](../graph-event-contract.md#event-envelope-and-ordering). Recording sequence does not establish causality; instrumentation must preserve scheduler choices and effects.
 
@@ -14,7 +14,9 @@ Initialization order is: allocate and validate storage; apply declared state ini
 
 ## Time and event ordering
 
-The initial time base is integer femtoseconds, restricted to nonnegative signed 64-bit range for the Arc boundary. Delay conversion must be exact; nonrepresentable values and overflow fail. No floating-point time or silent rounding is allowed. Report `TimePoint { ticks, delta, phase }`; delta is a checked unsigned counter. “No next event” is an optional value, not a sentinel timestamp.
+The initial time base is integer femtoseconds, restricted to nonnegative signed 64-bit range for the Arc boundary. Delay conversion must be exact; nonrepresentable values and overflow fail. No floating-point time or silent rounding is allowed. Report `TimePoint { ticks, delta, phase }`; delta is a checked unsigned counter. “No next event” is an optional value, not a sentinel timestamp. Future deliveries carry physical time, delivery kind and semantic ordering identity; their delta is assigned during processing, not predicted when scheduled.
+
+The [execution data model](06-execution-data-model.md#two-dispatch-mechanisms) separates exact deliveries from coalescible region activation. Eligible zero-delay combinational reevaluation uses activation bits, including inside async regions. Coalescing a wake request cannot erase a transition required by an edge-sensitive process, stateful primitive or observation. Current-time effects retain their ordered work classes; they need not enter the future-time queue.
 
 One coordinator owns each session. At a physical timestamp it executes a restricted iterative scheduling cycle:
 
@@ -38,7 +40,7 @@ Memory descriptors declare dimensions, port clocks, read/write latency, masks, i
 
 ## Delays, feedback and progress
 
-A queued assignment contains the value captured at scheduling time, destination, delivery time, phase and cancellation identity. Delivery does not reread its source expression. Transport delay preserves every scheduled transition; inertial filtering is confined to primitives with an explicit cancellation rule. Process wait registrations carry generation tokens so an obsolete timeout cannot wake a later wait.
+A queued assignment contains the value captured at scheduling time, destination, delivery time, delivery kind/work class and cancellation identity. Delivery does not reread its source expression. Transport delay preserves every scheduled transition; inertial filtering is confined to primitives with an explicit cancellation rule. Process wait registrations carry generation tokens so an obsolete timeout cannot wake a later wait. Generation counters cannot wrap and revive canceled work.
 
 Pure combinational acyclic regions may evaluate in topological order. Stateful feedback is represented by explicit primitives or supported processes. SCC detection diagnoses cycles; it does not justify choosing an arbitrary fixed point for a C-element, latch or oscillator. Unrecognized combinational loops are rejected initially. Supported zero-time feedback has a finite work budget and reports nonconvergence with causal context; a positive-delay oscillator remains a valid timed process.
 
@@ -61,6 +63,6 @@ Callback registration specifies phase and whether drives are permitted. Read-onl
 
 Full-scan mode executes all eligible pure regions while preserving trigger conditions and exactly-once side effects. Tracked mode must produce the same observations. Consume activation before evaluation or use generations so reactivation survives. Always-run regions must still notify tracked consumers. Delay events, commits, callbacks and stateful models cannot be duplicated by partition replication.
 
-A clocked fast path may skip queue machinery only when it preserves all observable edges, phases, resets and external interactions. Async regions retain exact events. Future CPU threading or GPU execution must yield at the same required boundaries.
+A clocked fast path may skip queue machinery only when it preserves all observable edges, phases, resets and external interactions. A separate managed-clock calendar may avoid general-queue operations. Recheck the earliest competing obligation after every edge batch and its reactions: outgoing delayed work can shorten the safe window. Equal-time obligations require normal scheduling or an explicitly qualified equivalent path. Async regions retain exact timing and required transitions while using activation for eligible pure work. Future CPU threading or GPU execution must yield at the same required boundaries. See [fast-path conditions](06-execution-data-model.md#fast-clocked-loop).
 
 Acceptance: SEM-01–06, OPT-01–02 and ASY-03. Required traces include register swap, NBA re-entry, `#0`, captured delayed payload, canceled wakeup, reset during pause, time overflow, interior budget resume, and inclusive `run_until`. Compare tiny hand-authored expected traces with an independent evaluator before relying on optimized-versus-unoptimized comparisons.

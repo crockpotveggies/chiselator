@@ -1,6 +1,6 @@
 # Chiselator implementation specifications
 
-Draft contracts, integration status updated October 20, 2026. The simulator and production APIs are not implemented. Draft analysis schemas and limited documentation tests now exist; see the [contract kit](../schemas/README.md). These specifications refine the [software architecture](../software-architecture.md) and take precedence over overlapping sketches. Changes to observable behavior require a spec change and a regression fixture.
+Draft contracts, integration status updated October 20; execution data model added October 25, 2026. The simulator and production APIs are not implemented. Draft analysis schemas and limited documentation tests now exist; see the [contract kit](../schemas/README.md). These specifications refine the [software architecture](../software-architecture.md) and take precedence over overlapping sketches. Changes to observable behavior require a spec change and a regression fixture.
 
 | Specification | Owns | Initial implementation owner |
 | --- | --- | --- |
@@ -9,8 +9,11 @@ Draft contracts, integration status updated October 20, 2026. The simulator and 
 | [Async model contracts](03-async-model-contracts.md) | Primitives, channels, timing and the MCU example | Async/runtime |
 | [Application lifecycle](04-application-lifecycle.md) | Sessions, jobs, CLI, adapters, MCP and native packaging | Application/integration |
 | [Artifacts and compatibility](05-artifacts-compatibility.md) | Schemas, cache, reports, replay and release evidence | Integration/release |
+| [Execution data model](06-execution-data-model.md) | Plan/session tables, activations versus deliveries, clock-calendar fast paths and CPU/GPU layout experiments | Runtime/compiler |
 
 “Must” denotes a proposed release requirement, not a claim of current support. Owners are engineering roles; assign maintainers when implementation starts. Existing requirement and suite IDs refer to the [MVP list](../mvp-feature-list.md) and [test plan](../test-plan.md).
+
+Specification 01 owns observable scheduling semantics, 02 owns compiler/runtime boundaries, and 06 refines their storage and dispatch design. Specification 06 does not replace CIRCT or the public graph/event schemas. The 20× Verilator stretch ambition and the earlier 0.80× GSIM release gate remain separate under the [performance protocol](../test-plan.md#controlled-performance-experiments).
 
 The companion [extension overview](../extensibility-flow-analysis.md), [plugin API](../plugin-api.md) and [graph/event contract](../graph-event-contract.md) refine public analysis and EXT/FLW requirements. They cannot replace circuit semantics, expose compiler objects or turn incomplete analysis into passing simulation evidence. Read-only analysis plugins are distinct from runtime-loaded primitive plugins in specification 02.
 
@@ -37,4 +40,4 @@ The companion [extension overview](../extensibility-flow-analysis.md), [plugin A
 6. Complete adapters, CLI/MCP reports, replay and package tests against these same contracts. Add optimizations only with off-switch comparisons and measured benefit.
 7. Qualify the analysis host, normalized events, transaction lineage and viewer through the public plugin API. Keep physical P1–P3 and mapped-netlist/STA/SDF claims in the [separate target flow](../chip-build-plan.md).
 
-Arc reuse, ACT control APIs and exact frontend coverage remain experiments with explicit pass/fail evidence. An integration that fails its gate stays unsupported; it must not silently weaken semantics. The companion chip plan defines physical tool boundaries separately from these five simulator contracts.
+Arc reuse, ACT control APIs and exact frontend coverage remain experiments with explicit pass/fail evidence. An integration that fails its gate stays unsupported; it must not silently weaken semantics. The companion chip plan defines physical tool boundaries separately from these six simulator contracts.
