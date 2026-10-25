@@ -240,6 +240,37 @@ For the **same executable plan**, toggling passive recording must not change sim
 
 Required records are lossless: bounded streaming applies host backpressure or stops at an explicit resumable frontier/error. Reserve capacity before committing work whose required effects/observations cannot otherwise be retained. A host-capacity yield never creates a simulated delay. Circuit kernels cannot consume monitor state or log contents.
 
+## Analysis capture
+
+This proposed capture interface refines `ObservationPlan`; it does not introduce a scheduler phase, circuit probe process or simulator-owned FIFO. The [graph/event contract](../graph-event-contract.md#interface-samples-queues-and-waits) owns cross-record identities, compression and coverage. Its [schemas](../schemas/README.md) own public record shapes. Internal commit-log headers carry semantic object identity, the existing execution frontier and an ordered commit occurrence; payload references retain the required values. Internal occurrence identity is distinct from each output stream's `seq` and from circuit event allocation.
+
+| Commit-log class | Capture point and required content | Public use |
+| --- | --- | --- |
+| Value commit | Required signal/state value and initialization information at its existing semantic commit, before observation coalescing. Preserve widths and transient transitions required by the qualified decoder | Transaction lifecycle, effect/boundary evidence and separately qualified waveform history |
+| Clock state / edge | Initial clock state at the capture cut, actual running/paused changes with managed generation when available, and actual consumer edge occurrence | `clock.state`, existing `clock.edge`, and exact sampler references |
+| Sampler-batch interface classification | Channel, consumer edge identity and valid/ready class, computed inside the batch that samples that edge's registers from the values that batch actually reads | `interface.samples` runs; transferred samples match the channel transfer |
+| Queue operation / snapshot | Existing component storage's capture-start occupancy/token identities, then committed enqueue/dequeue token identities in declared order | `queue.snapshot`, `queue.enqueue`, `queue.dequeue` |
+| Wait transition | Component-owned obligation identity, begin/end and its contract vocabulary reason or explicit unknown | `wait.begin`, `wait.end`; never an inferred causal dependency |
+| Coverage gap | Affected observation classes/scopes and exact unavailable interval or stopped-capture reason | Stream-specific coverage records and manifest status; never permission to drop required output |
+
+Classification reads the batch's sampling frontier, before that batch's staged register commits become visible. It must not inspect the post-NBA state and retroactively call that the sampled interface. A generated edge at the same physical time may have a later sampling frontier under specification 01; it is a distinct occurrence. A paused clock dispatches no sampler, so it emits no classification. Capture does not manufacture an edge to observe idle or wait state. RLE happens after exact classifications are retained and follows the graph/event contract's split rules.
+
+An analysis request names a rule/metric version, semantic scopes, half-open window, required coverage and optional detail. Planning expands those names into bindings before selecting an executor variant. Each entry records the requested object and contract version, observation class, binding/read point, initial snapshot obligation, payload requirements, required/optional status and coverage destination. Bindings must map through the identity overlay after splitting, replication or lowering; duplicate replicas do not create duplicate logical records.
+
+| Requested analysis input | Observation-plan expansion |
+| --- | --- |
+| Async channel durations | Qualified protocol signal commits plus initial phase/reset knowledge and channel lifecycle decoder bindings |
+| Clocked channel fractions | Valid/ready read bindings at the actual consumer sampler, sampling policy, actual edge and clock-state publications, and the transfer decoder |
+| Queue occupancy/detail | Upstream component's storage declaration, capture-start snapshot and exact enqueue/dequeue probes; absence is unavailable, never inferred from transactions |
+| Wait durations/causes | Upstream obligation probes and vocabulary reference, plus initial wait knowledge. A qualified transition with no vocabulary can expose duration with cause unknown; no transition probe means unavailable duration too |
+| `flow.stage-bottleneck@1` | The input/output observations required by the [algorithm](../flow-analysis-algorithms.md#stage-bottleneck-candidates); queue/wait detail is requested separately and does not become a hidden prerequisite for a fully observed async stage |
+
+Resolve upstream declarations, validate complete binding coverage and record the prepared observation contract before the run. Publish the final capture manifest after artifact bytes and coverage are known. A late request can reuse only observations already captured; otherwise prepare another observation plan and run. An optimization/backend that cannot preserve a required probe makes the requested analysis **UNSUPPORTED** or rejects that variant before execution. The simulator outcome remains independent. Do not substitute a signal-name heuristic, hidden storage, an approximate post-commit sample or a silently reduced scope. Real component queue/wait probe ABI remains an upstream dependency.
+
+The same prepared executable with passive probes off/on must preserve simulated scheduling, event allocation, effects and random choices. Required log capacity is reserved before an atomic work item's commit; bounded output pressure yields the host or fails explicitly without simulated time passing. Device batches reserve per-session observation capacity and retain complete records across yields/compaction. Monitors consume committed observations only; circuit kernels never read analysis state. A differently compiled observation policy can constrain fusion/layout, but it must preserve common requested semantics as described above.
+
+Acceptance: [DM-05/06](../test-plan.md#execution-data-model-qualification) and [PLG-04/FLOW-02/04](../test-plan.md#extension-and-hybrid-flow-analysis-qualification) require same-plan probe transparency, correct batch-frontier samples, snapshot arithmetic, unsupported-binding diagnostics and bounded capture accounting. Hand-authored normalized fixtures do not establish those runtime properties.
+
 ## CPU and GPU layouts
 
 | Layout | Use | Storage |
@@ -300,8 +331,13 @@ Counters have versioned definitions and scope: model/layout hash, session, obser
 | Queue cost | Insert/extract/tombstone operations, live/max depth, spill/overflow/yield counts and payload bytes, by queue kind; operation time comes from separately labeled profiling |
 | Fast-path windows | Entered windows, edge batches per window, total executed edges and exits by reason; retain disabled/eligible-but-unused status |
 | Batch utilization | For a declared kernel/sample scope, useful active lane-work opportunities divided by issued lane capacity, with padded/retired lanes accounted for. Declare the sampling/weighting rule; include compaction, launch, synchronization and transfer cost |
+| Capture volume | Logical commit records by class, retained payload bytes, published flow/probe records and bytes, and sample edges represented by each RLE stream. Compression ratio is sampled edges / published sample intervals; an empty denominator is unavailable |
+| Capture pressure | Current/peak log bytes, capacity-reservation failures, host backpressure yields, explicit capture failures and declared gaps by required/optional scope. Required dropped-record count must be zero; a gap is not a successful lossless capture |
+| Capture cost | Separately measured host capture/serialization time, storage bytes and offline analysis time. Overhead compares matched same-plan probes off/on with identical completed application work; wall-time measurements have uncertainty and are not deterministic semantic counters |
 
 Instrumentation overhead is measured separately. Event/evaluation rates diagnose cost; performance conclusions require equal completed application work. [DM-06](../test-plan.md#execution-data-model-qualification) tests counter meaning as well as presence.
+
+Acceptance: exact capture counts reproduce for the same plan/input/policy; host time is measured with the [controlled performance protocol](../test-plan.md#controlled-performance-experiments). DM-06 rejects counters that hide required-record loss or confuse public RLE intervals with simulated events.
 
 ## Open experiments
 
@@ -329,8 +365,8 @@ The named suites are registered in the [test plan](../test-plan.md#execution-dat
 | DM-02 Fast-path equivalence | Full versus specialized execution across event ties, async input/output mid-window, callbacks, gated/paused clocks, reset, coincident/generated edges, inclusive limits and interior budget resume; identical required observations and proof that the fast path executed |
 | DM-03 Layout independence | Advertised native/SIMD/device layouts agree on values, effects, observations and keyed choices across partial batches, widths, lane compaction and regrouping; actual target ABI checks |
 | DM-04 Bounded queues | Queue/payload/log overflow, far-future ring wrap and same-bucket order preserve deliveries or fail explicitly; supported spill resumes without duplicate effects; compact-key and generation limits fail before wrap |
-| DM-05 Crossing transparency | Same-plan passive observation changes no circuit delivery/activation/choice; different observation plans preserve common semantic observations. No hidden storage/capture; per-channel lineage and actual bridge/reset ownership remain correct |
-| DM-06 Overhead accounting | Every declared counter has a fixture-derived value/denominator and reproducibility scope; idle/clockless/partial cases do not fabricate ratios. Profiling compiles and meaningful work is exercised |
+| DM-05 Crossing transparency | Same-plan passive flow and probe capture changes no circuit delivery/activation/choice; different observation plans preserve common semantic observations. Sampler classifications use the actual read frontier; queue/wait probes add no storage, edge or cause. Required unsupported bindings fail explicitly |
+| DM-06 Overhead accounting | Every declared runtime/capture counter has a fixture-derived value/denominator and reproducibility scope; idle/clockless/partial cases do not fabricate ratios. Distinguish logical commits, RLE output, payload/storage bytes, pressure and host timing. Profiling compiles and meaningful work is exercised |
 
 Also require SEM-02/03/06, OPT-01/02, ASY-01/02/03/04, DUR-02 and the relevant FLOW suites. [Optional backend qualification](../test-plan.md#optional-backend-qualification) applies only to advertised accelerator capabilities; optional layouts do not gate the CPU MVP. Compare hand-authored expected traces with the independent evaluator before optimized-versus-conservative agreement. Inject dropped pulses, premature commits, missed already-true waits, stale tokens, illegal compact-key wrap, overflow loss and lane-keyed RNG; require the intended checker to fail.
 

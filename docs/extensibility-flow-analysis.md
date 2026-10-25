@@ -1,6 +1,6 @@
 # Extensibility and hybrid flow analysis plan
 
-Chiselator will expose a versioned tool-extension interface. The first plugin explains traffic, waiting and bottleneck candidates in clocked, async and hybrid designs through a connected graph, transaction timeline and metrics table. The host/analyzer/viewer remain proposed. Draft schemas and a small checked example now exist.
+Chiselator will expose a versioned tool-extension interface. The first plugin explains traffic, waiting and bottleneck candidates in clocked, async and hybrid designs through a connected graph, transaction timeline and metrics table. The host/analyzer/viewer remain proposed. Draft schemas and hand-authored receipt and pipeline examples now exist.
 
 This overview owns product scope. Detailed contracts now live in the [plugin API](plugin-api.md), [graph/event schema](graph-event-contract.md) and [algorithm research](flow-analysis-algorithms.md), avoiding duplicate interface specifications here. The [six specifications](specs/README.md) continue to own circuit semantics. The [current stack baseline](integration-status.md) records the built library and MCU inputs.
 
@@ -39,7 +39,7 @@ Analysis status is COMPLETE, PARTIAL, UNSUPPORTED, CANCELED or ERROR. Timeout is
 
 ## Shared graph and observation contract
 
-The [schema contract](graph-event-contract.md) separates logical topology, causal event DAGs and dynamic wait graphs. Graph IDs are model-scoped, events retain exact femtoseconds and sequence, and boundary relationships preserve per-channel transaction identities. Effects have separate ownership and reset epochs. Schemas, an illustrative bundle and selected negative controls are in the [contract kit](schemas/README.md).
+The [schema contract](graph-event-contract.md) separates logical topology, causal event DAGs and dynamic wait graphs. Graph IDs are model-scoped, events retain exact femtoseconds and sequence, and boundary relationships preserve per-channel transaction identities. Effects have separate ownership and reset epochs. Artifact `0.2.0` adds independent [probe records](schemas/probe-event.schema.json) for consumer-edge classes, queues and waits, with separate capture coverage. Schemas, hand-authored bundles and selected negative controls are in the [contract kit](schemas/README.md). [Spec 06](specs/06-execution-data-model.md#analysis-capture) defines how a request becomes capture-plan bindings.
 
 Capture actual commits before coalescing. Required observations are lossless or fail explicitly. Imported traces with missing phase or causal metadata cannot support analyses requiring that information. Re-analysis does not rerun the simulator.
 
@@ -53,11 +53,11 @@ Correlate with explicit boundary evidence, tags or qualified queue order, never 
 
 Report offers, acceptances, completions and aborts separately. Define half-open windows, offer cohorts, pending/preexisting observations and coverage. Latency and traffic use simulated time; host analysis/simulator cost is separate. Occupancy requires capacity and queue observations. Wait reasons need component evidence. Unknown is not zero.
 
-High traffic alone is not a bottleneck. The initial analyzer sorts named metrics with evidence, sample counts and limits; it has no opaque hotspot score. Wait cycles are candidates, deadlines are policy checks, and deadlock proof requires a qualified closed model. [Algorithm decisions](flow-analysis-algorithms.md) cover streaming decoders, SCCs, causal path analysis, exact statistics and layout choices.
+High traffic alone is not a bottleneck. Proposed [rule `flow.stage-bottleneck@1`](flow-analysis-algorithms.md#stage-bottleneck-candidates) tests input backpressure and output starvation on eligible single-input/single-output stages with recorded thresholds. It reports a candidate and its metrics, never a violation or opaque score. The [pipeline example](examples/pipeline-bottleneck/README.md) distinguishes the middle-stage candidate from neighboring symptoms. Wait cycles remain candidates, deadlines are policy checks, and deadlock proof requires a qualified closed model. The algorithm document owns complex-topology exclusions and causal-path attribution.
 
 ## Graph report and automation
 
-Publish the logical graph, normalized events, capture manifest, analysis result and optional CSV/local-view bundle. Preserve plugin/decoder/metric versions, input hashes, configuration, requested scope and coverage. Comparisons require compatible model mappings, workloads and metric definitions; intentional experimental differences are explicit.
+Publish the logical graph, normalized flow events, separately negotiated probe events, capture manifest, analysis result and optional CSV/local-view bundle. Preserve plugin/decoder/metric versions, input hashes, configuration, requested scope and per-stream coverage. Comparisons require compatible model mappings, workloads and metric definitions; intentional experimental differences are explicit.
 
 Graph, timeline and metric table share IDs and evidence references. Clock/reset domains, protocol badges, unknown coverage and feedback remain visible. CLI/MCP use the same job service; viewer plugins cannot inject executable UI. Physical-tool overlays such as Vivado reports may be added later through versioned mappings and provenance.
 
