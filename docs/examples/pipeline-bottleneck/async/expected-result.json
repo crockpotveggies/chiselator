@@ -1,0 +1,310 @@
+{
+  "schema_version": "0.2.0",
+  "analysis_id": "a:expected:async",
+  "run_id": "r:pipeline:async",
+  "graph_id": "g:pipeline:async",
+  "status": "COMPLETE",
+  "plugin": {
+    "id": "fixture-oracle",
+    "version": "1"
+  },
+  "provenance": {
+    "plugin_package_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "configuration_sha256": "7f4713dc745fa661b9a54dcfa4ba330f3ed1967316e7714481ae0cd54bd786ef",
+    "decoder_versions": {
+      "hand-authored": "1"
+    },
+    "metric_versions": {
+      "fixture-arithmetic": "1"
+    },
+    "deterministic": true
+  },
+  "inputs": {
+    "graph_sha256": "943497e7dded69f703062af1dbd8c7e57a6bd0721d21debb81b2bb5b1baed1ce",
+    "events_sha256": "4951598d02f3dd03e2c3193de29a89f4d52a52563a8042698e73e6f71cbdec3c",
+    "probes_sha256": "d092ff55af1de56ee3a5a6c2b26d419be77c990cab66c09c7d58475cd73dacd6"
+  },
+  "configuration": {
+    "flow.stage-bottleneck@1": {
+      "input_backpressure": {
+        "numerator": "1",
+        "denominator": "2"
+      },
+      "output_starvation": {
+        "numerator": "1",
+        "denominator": "2"
+      },
+      "min_samples": "1"
+    }
+  },
+  "window": {
+    "start_fs": "0",
+    "end_fs": "24000000"
+  },
+  "metrics": [
+    {
+      "id": "backpressure-fraction",
+      "definition": "async-backpressure-fraction@1",
+      "scope": "c:0",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "1000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starvation-fraction",
+      "definition": "async-starvation-fraction@1",
+      "scope": "c:0",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "22000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "backpressure-fraction",
+      "definition": "async-backpressure-fraction@1",
+      "scope": "c:1",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "16000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starvation-fraction",
+      "definition": "async-starvation-fraction@1",
+      "scope": "c:1",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "7000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "backpressure-fraction",
+      "definition": "async-backpressure-fraction@1",
+      "scope": "c:2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "1000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starvation-fraction",
+      "definition": "async-starvation-fraction@1",
+      "scope": "c:2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "22000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "backpressure-fraction",
+      "definition": "async-backpressure-fraction@1",
+      "scope": "c:3",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "1000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starvation-fraction",
+      "definition": "async-starvation-fraction@1",
+      "scope": "c:3",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "22000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "wait-duration",
+      "definition": "wait-duration@1",
+      "scope": "n:s2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fs",
+      "status": "known",
+      "numerator": "16000000",
+      "denominator": "1",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "wait-duration",
+      "definition": "wait-duration@1",
+      "scope": "n:s3",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fs",
+      "status": "known",
+      "numerator": "18000000",
+      "denominator": "1",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "f:middle",
+      "rule": "flow.stage-bottleneck@1",
+      "classification": "candidate",
+      "severity": "info",
+      "scope": "n:s2",
+      "message": "Middle stage meets both configured fractions in this window.",
+      "metric_refs": [
+        {
+          "scope": "c:1",
+          "id": "backpressure-fraction"
+        },
+        {
+          "scope": "c:2",
+          "id": "starvation-fraction"
+        }
+      ],
+      "assumptions": [
+        "Single-input/single-output stage; complete coverage; thresholds 1/2; minimum one edge for clocked fractions.",
+        "Upstream output backpressure and downstream input starvation are symptoms, not extra bottleneck findings."
+      ],
+      "evidence": [
+        {
+          "artifact": "graph",
+          "record": "n:s2"
+        },
+        {
+          "artifact": "capture",
+          "record": "window/coverage"
+        },
+        {
+          "artifact": "events",
+          "record": "4"
+        },
+        {
+          "artifact": "events",
+          "record": "5"
+        },
+        {
+          "artifact": "events",
+          "record": "6"
+        },
+        {
+          "artifact": "events",
+          "record": "7"
+        },
+        {
+          "artifact": "events",
+          "record": "8"
+        },
+        {
+          "artifact": "events",
+          "record": "9"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Draft hand-authored expected results, not output of a simulator or analyzer.",
+    "Synthetic wait contracts do not define upstream chisel-async probe names.",
+    "A short transient window supports candidates only; no causal or physical timing proof."
+  ],
+  "extensions": {}
+}

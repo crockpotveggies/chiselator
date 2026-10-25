@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:chiselator:analysis:flow-event:0.1.0",
+  "$id": "urn:chiselator:analysis:flow-event:0.2.0",
   "title": "Normalized flow event (one JSONL record)",
   "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
   "type": "object",
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "run_id": {
       "type": "string",
@@ -489,6 +489,45 @@
             "channels",
             "reason",
             "end_fs"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "clock.state"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "domain_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "state": {
+              "enum": [
+                "running",
+                "paused"
+              ]
+            },
+            "managed_generation": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "domain_id",
+            "state",
+            "managed_generation"
           ],
           "additionalProperties": false
         }

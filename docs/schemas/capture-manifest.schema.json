@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:chiselator:analysis:capture-manifest:0.1.0",
+  "$id": "urn:chiselator:analysis:capture-manifest:0.2.0",
   "title": "Captured analysis inputs",
   "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
   "type": "object",
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "run_id": {
       "type": "string",
@@ -188,6 +188,135 @@
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9.-]+/[A-Za-z0-9_.-]+$"
       }
+    },
+    "probes": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "artifact": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "bytes": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "media_type": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "bytes",
+                "media_type"
+              ],
+              "additionalProperties": false
+            },
+            "coverage": {
+              "type": "object",
+              "properties": {
+                "samples": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uniqueItems": true
+                },
+                "queues": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uniqueItems": true
+                },
+                "waits": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uniqueItems": true
+                },
+                "status": {
+                  "enum": [
+                    "complete",
+                    "partial"
+                  ]
+                },
+                "initial_wait_state": {
+                  "enum": [
+                    "known-idle",
+                    "unknown"
+                  ]
+                },
+                "gaps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "start_fs": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)$"
+                      },
+                      "end_fs": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)$"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "start_fs",
+                      "end_fs",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 0
+                },
+                "phase_precision": {
+                  "enum": [
+                    "exact",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "samples",
+                "queues",
+                "waits",
+                "status",
+                "initial_wait_state",
+                "gaps",
+                "phase_precision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "artifact",
+            "coverage"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [
@@ -199,7 +328,8 @@
     "events",
     "window",
     "coverage",
-    "extensions"
+    "extensions",
+    "probes"
   ],
   "additionalProperties": false
 }

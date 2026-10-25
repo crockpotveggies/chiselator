@@ -43,7 +43,7 @@ Use [JSON-RPC 2.0](https://www.jsonrpc.org/specification) over UTF-8 stdio, one 
 
 Initial limits: 1 MiB per control frame, one active analysis per process, 10 seconds for initialization, 5 seconds for cooperative cancellation, 100 messages/second per process with progress coalescing. Job wall-time/output limits are explicit in `analyze`; values are recorded and configurable. Large graphs/events/results travel in files, never JSON-RPC or MCP messages. Integer simulated times and potentially large counters use decimal strings.
 
-During draft development **negotiate exact versions**, including `0.1.0`; no SemVer compatibility inference. Unknown required capabilities or versions fail before analysis. A future stable minor version may allow additions only under published compatibility rules. Optional namespaced metadata belongs in `extensions`; closed core records reject unknown fields. Unknown event kinds cannot be skipped while claiming complete affected metrics.
+During draft development **negotiate exact versions**: process API `0.1.0`, artifact schemas `0.2.0`; no SemVer compatibility inference. Unknown required capabilities or versions fail before analysis. A future stable minor version may allow additions only under published compatibility rules. Optional namespaced metadata belongs in `extensions`; closed core records reject unknown fields. Unknown event kinds cannot be skipped while claiming complete affected metrics. `probe` is an independently negotiated artifact kind; transaction-only plugins can omit it. A requested probe-dependent analysis without negotiated coverage is UNSUPPORTED, never complete with zeros.
 
 | Direction / method | Required parameters | Result / obligation |
 | --- | --- | --- |
@@ -57,7 +57,7 @@ During draft development **negotiate exact versions**, including `0.1.0`; no Sem
 Errors use JSON-RPC standard codes for parse/envelope/method/parameter failures. Application codes: `-32010 INCOMPATIBLE`, `-32011 INVALID_ARTIFACT`, `-32012 MISSING_CAPABILITY`, `-32013 LIMIT_EXCEEDED`, `-32014 ANALYSIS_FAILED`. Structured `error.data` contains stable `reason`, optional artifact/evidence and retryability. An accepted job records a terminal host result even if a malformed response or process crash prevents a valid plugin response.
 
 ```json
-{"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"api_versions":["0.1.0"],"host_version":"0.1.0-dev","role":"analyzer","artifact_versions":{"graph":["0.1.0"],"event":["0.1.0"],"capture":["0.1.0"],"result":["0.1.0"]},"limits":{"control_frame_bytes":1048576}}}
+{"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"api_versions":["0.1.0"],"host_version":"0.1.0-dev","role":"analyzer","artifact_versions":{"graph":["0.2.0"],"event":["0.2.0"],"probe":["0.2.0"],"capture":["0.2.0"],"result":["0.2.0"]},"limits":{"control_frame_bytes":1048576}}}
 ```
 
 This is an illustrative control request, not a working command. The initial SDK must include generated types, line framing, lifecycle helpers and conformance transcripts for valid/error/cancel/crash exchanges. Schemas alone do not implement this RPC layer.

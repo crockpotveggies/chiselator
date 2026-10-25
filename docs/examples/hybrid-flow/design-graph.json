@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "graph_id": "g:receipt-example",
   "model_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "domains": [
@@ -34,7 +34,8 @@
           "id": "out",
           "direction": "output"
         }
-      ]
+      ],
+      "wait_vocabulary": null
     },
     {
       "id": "n:receipt",
@@ -53,7 +54,8 @@
           "id": "out",
           "direction": "output"
         }
-      ]
+      ],
+      "wait_vocabulary": null
     },
     {
       "id": "n:consumer",
@@ -68,7 +70,8 @@
           "id": "in",
           "direction": "input"
         }
-      ]
+      ],
+      "wait_vocabulary": null
     }
   ],
   "channels": [
@@ -89,7 +92,8 @@
       "payload": {
         "encoding": "bits",
         "width_bits": 32
-      }
+      },
+      "sampling_policy": null
     },
     {
       "id": "c:clocked",
@@ -109,6 +113,10 @@
       "payload": {
         "encoding": "bits",
         "width_bits": 32
+      },
+      "sampling_policy": {
+        "domain_id": "d:clk",
+        "edge": "rising"
       }
     }
   ],
@@ -132,5 +140,7 @@
   ],
   "extensions": {
     "example/provenance": "Hand-authored synthetic model; zero model hash is a placeholder, not an RTL content hash."
-  }
+  },
+  "wait_vocabularies": [],
+  "queues": []
 }

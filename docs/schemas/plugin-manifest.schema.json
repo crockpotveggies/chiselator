@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:chiselator:analysis:plugin-manifest:0.1.0",
+  "$id": "urn:chiselator:analysis:plugin-manifest:0.2.0",
   "title": "Installed analysis plugin manifest",
   "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
   "type": "object",
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "id": {
       "type": "string",
@@ -52,6 +52,14 @@
           "minItems": 1
         },
         "result": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "probe": {
           "type": "array",
           "items": {
             "type": "string",

@@ -1,0 +1,506 @@
+{
+  "schema_version": "0.2.0",
+  "analysis_id": "a:expected:hybrid",
+  "run_id": "r:pipeline:hybrid",
+  "graph_id": "g:pipeline:hybrid",
+  "status": "COMPLETE",
+  "plugin": {
+    "id": "fixture-oracle",
+    "version": "1"
+  },
+  "provenance": {
+    "plugin_package_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "configuration_sha256": "7f4713dc745fa661b9a54dcfa4ba330f3ed1967316e7714481ae0cd54bd786ef",
+    "decoder_versions": {
+      "hand-authored": "1"
+    },
+    "metric_versions": {
+      "fixture-arithmetic": "1"
+    },
+    "deterministic": true
+  },
+  "inputs": {
+    "graph_sha256": "7631560e4078d04bd7e20f58c0427019e4f3be6c80df6141f684d456a6c2399e",
+    "events_sha256": "889befaaf347a10955955760fcce26b4ec3df45d76d528ebf9edeb3bc768eb6e",
+    "probes_sha256": "2e3a551ae7c614f758dd9c2d609f0b54782252b3c9a4b59979b06f1a55e562e2"
+  },
+  "configuration": {
+    "flow.stage-bottleneck@1": {
+      "input_backpressure": {
+        "numerator": "1",
+        "denominator": "2"
+      },
+      "output_starvation": {
+        "numerator": "1",
+        "denominator": "2"
+      },
+      "min_samples": "1"
+    }
+  },
+  "window": {
+    "start_fs": "0",
+    "end_fs": "24000000"
+  },
+  "metrics": [
+    {
+      "id": "backpressure-fraction",
+      "definition": "async-backpressure-fraction@1",
+      "scope": "c:0",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "2000000",
+      "denominator": "24000000",
+      "samples": "2",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starvation-fraction",
+      "definition": "async-starvation-fraction@1",
+      "scope": "c:0",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "20000000",
+      "denominator": "24000000",
+      "samples": "2",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "backpressure-fraction",
+      "definition": "sample-backpressure-fraction@1",
+      "scope": "c:1",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "5",
+      "denominator": "9",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starvation-fraction",
+      "definition": "sample-starvation-fraction@1",
+      "scope": "c:1",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "9",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "backpressure-fraction",
+      "definition": "sample-backpressure-fraction@1",
+      "scope": "c:2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "0",
+      "denominator": "9",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starvation-fraction",
+      "definition": "sample-starvation-fraction@1",
+      "scope": "c:2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "7",
+      "denominator": "9",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "backpressure-fraction",
+      "definition": "async-backpressure-fraction@1",
+      "scope": "c:3",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "1000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starvation-fraction",
+      "definition": "async-starvation-fraction@1",
+      "scope": "c:3",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fraction",
+      "status": "known",
+      "numerator": "22000000",
+      "denominator": "24000000",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "transferred-edges",
+      "definition": "sample-class-count@1",
+      "scope": "c:1",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "2",
+      "denominator": "1",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "backpressured-edges",
+      "definition": "sample-class-count@1",
+      "scope": "c:1",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "5",
+      "denominator": "1",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starved-edges",
+      "definition": "sample-class-count@1",
+      "scope": "c:1",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "1",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "idle-edges",
+      "definition": "sample-class-count@1",
+      "scope": "c:1",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "1",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "transferred-edges",
+      "definition": "sample-class-count@1",
+      "scope": "c:2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "1",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "backpressured-edges",
+      "definition": "sample-class-count@1",
+      "scope": "c:2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "0",
+      "denominator": "1",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "starved-edges",
+      "definition": "sample-class-count@1",
+      "scope": "c:2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "7",
+      "denominator": "1",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "idle-edges",
+      "definition": "sample-class-count@1",
+      "scope": "c:2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "count",
+      "status": "known",
+      "numerator": "1",
+      "denominator": "1",
+      "samples": "9",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "mean-occupancy",
+      "definition": "queue-time-weighted-occupancy@1",
+      "scope": "q:middle",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "tokens",
+      "status": "known",
+      "numerator": "40000000",
+      "denominator": "24000000",
+      "samples": "5",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "wait-duration",
+      "definition": "wait-duration@1",
+      "scope": "n:s2",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fs",
+      "status": "known",
+      "numerator": "16000000",
+      "denominator": "1",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    },
+    {
+      "id": "wait-duration",
+      "definition": "wait-duration@1",
+      "scope": "n:s3",
+      "window": {
+        "start_fs": "0",
+        "end_fs": "24000000"
+      },
+      "unit": "fs",
+      "status": "known",
+      "numerator": "20000000",
+      "denominator": "1",
+      "samples": "1",
+      "coverage": "complete",
+      "censoring": {
+        "left": "0",
+        "right": "0",
+        "aborted": "0"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "f:middle",
+      "rule": "flow.stage-bottleneck@1",
+      "classification": "candidate",
+      "severity": "info",
+      "scope": "n:s2",
+      "message": "Middle stage meets both configured fractions in this window.",
+      "metric_refs": [
+        {
+          "scope": "c:1",
+          "id": "backpressure-fraction"
+        },
+        {
+          "scope": "c:2",
+          "id": "starvation-fraction"
+        }
+      ],
+      "assumptions": [
+        "Single-input/single-output stage; complete coverage; thresholds 1/2; minimum one edge for clocked fractions.",
+        "Upstream output backpressure and downstream input starvation are symptoms, not extra bottleneck findings."
+      ],
+      "evidence": [
+        {
+          "artifact": "graph",
+          "record": "n:s2"
+        },
+        {
+          "artifact": "capture",
+          "record": "window/coverage"
+        },
+        {
+          "artifact": "probes",
+          "record": "4"
+        },
+        {
+          "artifact": "probes",
+          "record": "6"
+        },
+        {
+          "artifact": "probes",
+          "record": "7"
+        },
+        {
+          "artifact": "probes",
+          "record": "8"
+        },
+        {
+          "artifact": "probes",
+          "record": "10"
+        },
+        {
+          "artifact": "probes",
+          "record": "11"
+        },
+        {
+          "artifact": "probes",
+          "record": "15"
+        },
+        {
+          "artifact": "probes",
+          "record": "16"
+        },
+        {
+          "artifact": "probes",
+          "record": "18"
+        },
+        {
+          "artifact": "probes",
+          "record": "19"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Draft hand-authored expected results, not output of a simulator or analyzer.",
+    "Synthetic wait contracts do not define upstream chisel-async probe names.",
+    "A short transient window supports candidates only; no causal or physical timing proof."
+  ],
+  "extensions": {}
+}

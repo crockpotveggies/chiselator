@@ -1,0 +1,68 @@
+{
+  "schema_version": "0.2.0",
+  "run_id": "r:pipeline:hybrid",
+  "graph_id": "g:pipeline:hybrid",
+  "producer": {
+    "id": "fixture-author",
+    "version": "1",
+    "kind": "hand-authored"
+  },
+  "graph": {
+    "path": "design-graph.json",
+    "sha256": "7631560e4078d04bd7e20f58c0427019e4f3be6c80df6141f684d456a6c2399e",
+    "bytes": "5479",
+    "media_type": "application/json"
+  },
+  "events": {
+    "path": "flow-events.jsonl",
+    "sha256": "889befaaf347a10955955760fcce26b4ec3df45d76d528ebf9edeb3bc768eb6e",
+    "bytes": "8597",
+    "media_type": "application/x-ndjson"
+  },
+  "probes": {
+    "artifact": {
+      "path": "probe-events.jsonl",
+      "sha256": "2e3a551ae7c614f758dd9c2d609f0b54782252b3c9a4b59979b06f1a55e562e2",
+      "bytes": "6737",
+      "media_type": "application/x-ndjson"
+    },
+    "coverage": {
+      "samples": [
+        "c:1",
+        "c:2"
+      ],
+      "queues": [
+        "q:middle"
+      ],
+      "waits": [
+        "n:s2",
+        "n:s3"
+      ],
+      "status": "complete",
+      "initial_wait_state": "known-idle",
+      "gaps": [],
+      "phase_precision": "exact"
+    }
+  },
+  "window": {
+    "start_fs": "0",
+    "end_fs": "24000000"
+  },
+  "coverage": {
+    "channels": [
+      "c:0",
+      "c:1",
+      "c:2",
+      "c:3"
+    ],
+    "status": "complete",
+    "initial_state": "known-idle",
+    "phase_precision": "exact",
+    "gaps": []
+  },
+  "extensions": {
+    "example/evidence": {
+      "fixture-notes": "../README.md"
+    }
+  }
+}

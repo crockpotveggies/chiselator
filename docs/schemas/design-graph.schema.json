@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:chiselator:analysis:design-graph:0.1.0",
+  "$id": "urn:chiselator:analysis:design-graph:0.2.0",
   "title": "Logical analysis graph",
   "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
   "type": "object",
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "graph_id": {
       "type": "string",
@@ -146,6 +146,17 @@
               "line"
             ],
             "additionalProperties": false
+          },
+          "wait_vocabulary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -153,7 +164,8 @@
           "path",
           "kind",
           "domains",
-          "ports"
+          "ports",
+          "wait_vocabulary"
         ],
         "additionalProperties": false
       },
@@ -259,6 +271,33 @@
               "width_bits"
             ],
             "additionalProperties": false
+          },
+          "sampling_policy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "domain_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "edge": {
+                    "enum": [
+                      "rising",
+                      "falling"
+                    ]
+                  }
+                },
+                "required": [
+                  "domain_id",
+                  "edge"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -269,7 +308,8 @@
           "reset_domain",
           "capacity_tokens",
           "visibility",
-          "payload"
+          "payload",
+          "sampling_policy"
         ],
         "additionalProperties": false,
         "allOf": [
@@ -372,6 +412,95 @@
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9.-]+/[A-Za-z0-9_.-]+$"
       }
+    },
+    "wait_vocabularies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contract": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "id",
+          "contract",
+          "reasons"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "queues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner_node": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contract": {
+            "type": "string",
+            "minLength": 1
+          },
+          "channel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capacity_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ordering": {
+            "enum": [
+              "fifo",
+              "unordered"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "owner_node",
+          "contract",
+          "channel_id",
+          "capacity_tokens",
+          "ordering"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
@@ -382,7 +511,9 @@
     "nodes",
     "channels",
     "boundaries",
-    "extensions"
+    "extensions",
+    "wait_vocabularies",
+    "queues"
   ],
   "additionalProperties": false
 }

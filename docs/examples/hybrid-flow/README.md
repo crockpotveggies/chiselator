@@ -22,3 +22,5 @@ Expected async acceptance latency is **10 ns**, recovery **4 ns**, completion la
 The [expected result](expected-result.json) stores integer rational values, including the unavailable metric reason. The [timeline](../../images/hybrid-timeline.svg) and [interval chart](../../images/hybrid-metrics.svg) are reproducible illustrations. [Validation instructions](../../schemas/README.md) distinguish selected contract checks from future production decoder qualification.
 
 Further release fixtures must independently cover reverse clocked-to-async storage, FIFO ordering, native Click parity, fork/join, arbitration, reset and POR-owned effects, gated clocks, incomplete windows and unknown phase imports. This single example does not qualify those cases.
+
+The bundle now uses draft artifact version `0.2.0`. Its capture explicitly sets `probes: null`, so occupancy, per-edge classes and waits remain unavailable. Transaction timing and expected arithmetic are unchanged; hashes were deliberately refreshed for the migrated bytes. The [pipeline fixtures](../pipeline-bottleneck/README.md) add normalized probe examples without qualifying upstream capture.

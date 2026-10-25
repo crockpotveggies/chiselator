@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.2.0",
+  "run_id": "r:pipeline:async",
+  "graph_id": "g:pipeline:async",
+  "producer": {
+    "id": "fixture-author",
+    "version": "1",
+    "kind": "hand-authored"
+  },
+  "graph": {
+    "path": "design-graph.json",
+    "sha256": "943497e7dded69f703062af1dbd8c7e57a6bd0721d21debb81b2bb5b1baed1ce",
+    "bytes": "4201",
+    "media_type": "application/json"
+  },
+  "events": {
+    "path": "flow-events.jsonl",
+    "sha256": "4951598d02f3dd03e2c3193de29a89f4d52a52563a8042698e73e6f71cbdec3c",
+    "bytes": "3913",
+    "media_type": "application/x-ndjson"
+  },
+  "probes": {
+    "artifact": {
+      "path": "probe-events.jsonl",
+      "sha256": "d092ff55af1de56ee3a5a6c2b26d419be77c990cab66c09c7d58475cd73dacd6",
+      "bytes": "1174",
+      "media_type": "application/x-ndjson"
+    },
+    "coverage": {
+      "samples": [],
+      "queues": [],
+      "waits": [
+        "n:s2",
+        "n:s3"
+      ],
+      "status": "complete",
+      "initial_wait_state": "known-idle",
+      "gaps": [],
+      "phase_precision": "exact"
+    }
+  },
+  "window": {
+    "start_fs": "0",
+    "end_fs": "24000000"
+  },
+  "coverage": {
+    "channels": [
+      "c:0",
+      "c:1",
+      "c:2",
+      "c:3"
+    ],
+    "status": "complete",
+    "initial_state": "known-idle",
+    "phase_precision": "exact",
+    "gaps": []
+  },
+  "extensions": {
+    "example/evidence": {
+      "fixture-notes": "../README.md"
+    }
+  }
+}

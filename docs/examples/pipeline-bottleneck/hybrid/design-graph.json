@@ -1,0 +1,268 @@
+{
+  "schema_version": "0.2.0",
+  "graph_id": "g:pipeline:hybrid",
+  "model_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "domains": [
+    {
+      "id": "d:reset",
+      "name": "transport reset",
+      "kind": "reset"
+    },
+    {
+      "id": "d:async",
+      "name": "async neighbors",
+      "kind": "async"
+    },
+    {
+      "id": "d:clk",
+      "name": "actual gated consumer clock",
+      "kind": "clock",
+      "edge": "rising"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n:source",
+      "path": "pipeline.source",
+      "kind": "environment",
+      "domains": [
+        "d:async",
+        "d:reset",
+        "d:clk"
+      ],
+      "ports": [
+        {
+          "id": "out",
+          "direction": "output"
+        }
+      ],
+      "wait_vocabulary": null
+    },
+    {
+      "id": "n:s1",
+      "path": "pipeline.s1",
+      "kind": "boundary",
+      "domains": [
+        "d:async",
+        "d:reset",
+        "d:clk"
+      ],
+      "ports": [
+        {
+          "id": "in",
+          "direction": "input"
+        },
+        {
+          "id": "out",
+          "direction": "output"
+        }
+      ],
+      "wait_vocabulary": null
+    },
+    {
+      "id": "n:s2",
+      "path": "pipeline.s2",
+      "kind": "component",
+      "domains": [
+        "d:async",
+        "d:reset",
+        "d:clk"
+      ],
+      "ports": [
+        {
+          "id": "in",
+          "direction": "input"
+        },
+        {
+          "id": "out",
+          "direction": "output"
+        }
+      ],
+      "wait_vocabulary": "v:synthetic-service"
+    },
+    {
+      "id": "n:s3",
+      "path": "pipeline.s3",
+      "kind": "boundary",
+      "domains": [
+        "d:async",
+        "d:reset",
+        "d:clk"
+      ],
+      "ports": [
+        {
+          "id": "in",
+          "direction": "input"
+        },
+        {
+          "id": "out",
+          "direction": "output"
+        }
+      ],
+      "wait_vocabulary": null
+    },
+    {
+      "id": "n:sink",
+      "path": "pipeline.sink",
+      "kind": "environment",
+      "domains": [
+        "d:async",
+        "d:reset",
+        "d:clk"
+      ],
+      "ports": [
+        {
+          "id": "in",
+          "direction": "input"
+        }
+      ],
+      "wait_vocabulary": null
+    }
+  ],
+  "channels": [
+    {
+      "id": "c:0",
+      "source": {
+        "node": "n:source",
+        "port": "out"
+      },
+      "sink": {
+        "node": "n:s1",
+        "port": "in"
+      },
+      "protocol": "bd.four-phase.held-return@1",
+      "reset_domain": "d:reset",
+      "capacity_tokens": null,
+      "visibility": "complete",
+      "payload": {
+        "encoding": "bits",
+        "width_bits": 8
+      },
+      "sampling_policy": null
+    },
+    {
+      "id": "c:1",
+      "source": {
+        "node": "n:s1",
+        "port": "out"
+      },
+      "sink": {
+        "node": "n:s2",
+        "port": "in"
+      },
+      "protocol": "rv.sampled@1",
+      "reset_domain": "d:reset",
+      "capacity_tokens": 2,
+      "visibility": "complete",
+      "payload": {
+        "encoding": "bits",
+        "width_bits": 8
+      },
+      "sampling_policy": {
+        "domain_id": "d:clk",
+        "edge": "rising"
+      },
+      "clock_domain": "d:clk"
+    },
+    {
+      "id": "c:2",
+      "source": {
+        "node": "n:s2",
+        "port": "out"
+      },
+      "sink": {
+        "node": "n:s3",
+        "port": "in"
+      },
+      "protocol": "rv.sampled@1",
+      "reset_domain": "d:reset",
+      "capacity_tokens": null,
+      "visibility": "complete",
+      "payload": {
+        "encoding": "bits",
+        "width_bits": 8
+      },
+      "sampling_policy": {
+        "domain_id": "d:clk",
+        "edge": "rising"
+      },
+      "clock_domain": "d:clk"
+    },
+    {
+      "id": "c:3",
+      "source": {
+        "node": "n:s3",
+        "port": "out"
+      },
+      "sink": {
+        "node": "n:sink",
+        "port": "in"
+      },
+      "protocol": "bd.four-phase.held-return@1",
+      "reset_domain": "d:reset",
+      "capacity_tokens": null,
+      "visibility": "complete",
+      "payload": {
+        "encoding": "bits",
+        "width_bits": 8
+      },
+      "sampling_policy": null
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "b:s1",
+      "node": "n:s1",
+      "inputs": [
+        "c:0"
+      ],
+      "outputs": [
+        "c:1"
+      ],
+      "contract": "fixture.synthetic-converter@1",
+      "storage_slots": 1,
+      "reset_domain": "d:reset",
+      "effect_reset_domain": "d:reset",
+      "mapping": "explicit",
+      "retains_effects_across_reset": false
+    },
+    {
+      "id": "b:s3",
+      "node": "n:s3",
+      "inputs": [
+        "c:2"
+      ],
+      "outputs": [
+        "c:3"
+      ],
+      "contract": "fixture.synthetic-converter@1",
+      "storage_slots": 1,
+      "reset_domain": "d:reset",
+      "effect_reset_domain": "d:reset",
+      "mapping": "explicit",
+      "retains_effects_across_reset": false
+    }
+  ],
+  "wait_vocabularies": [
+    {
+      "id": "v:synthetic-service",
+      "contract": "fixture.synthetic-service@1",
+      "reasons": [
+        "service-deferred"
+      ]
+    }
+  ],
+  "queues": [
+    {
+      "id": "q:middle",
+      "owner_node": "n:s2",
+      "contract": "fixture.synthetic-fifo@1",
+      "channel_id": "c:1",
+      "capacity_tokens": null,
+      "ordering": "fifo"
+    }
+  ],
+  "extensions": {
+    "example/provenance": "Hand-authored abstract pipeline. Contract/reason identifiers are synthetic, not chisel-async probe names. Zero model hash is a placeholder."
+  }
+}

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:chiselator:analysis:analysis-result:0.1.0",
+  "$id": "urn:chiselator:analysis:analysis-result:0.2.0",
   "title": "Analysis terminal result",
   "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
   "type": "object",
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.2.0"
     },
     "analysis_id": {
       "type": "string",
@@ -95,11 +95,23 @@
         "events_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
+        },
+        "probes_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "graph_sha256",
-        "events_sha256"
+        "events_sha256",
+        "probes_sha256"
       ],
       "additionalProperties": false
     },
@@ -160,7 +172,9 @@
             "enum": [
               "count",
               "fs",
-              "count/fs"
+              "count/fs",
+              "fraction",
+              "tokens"
             ]
           },
           "status": {
@@ -184,6 +198,36 @@
           "reason": {
             "type": "string",
             "minLength": 1
+          },
+          "coverage": {
+            "enum": [
+              "complete",
+              "partial",
+              "unavailable"
+            ]
+          },
+          "censoring": {
+            "type": "object",
+            "properties": {
+              "left": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "right": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "aborted": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              }
+            },
+            "required": [
+              "left",
+              "right",
+              "aborted"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -193,7 +237,9 @@
           "window",
           "unit",
           "status",
-          "samples"
+          "samples",
+          "coverage",
+          "censoring"
         ],
         "additionalProperties": false,
         "allOf": [
@@ -300,6 +346,33 @@
               "additionalProperties": false
             },
             "minItems": 0
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1
+          },
+          "metric_refs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scope": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "scope",
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 2,
+            "uniqueItems": true
           }
         },
         "required": [
@@ -311,7 +384,32 @@
           "assumptions",
           "evidence"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "rule": {
+                  "const": "flow.stage-bottleneck@1"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "scope",
+                "metric_refs"
+              ],
+              "properties": {
+                "classification": {
+                  "const": "candidate"
+                },
+                "evidence": {
+                  "minItems": 1
+                }
+              }
+            }
+          }
+        ]
       },
       "minItems": 0
     },
@@ -328,6 +426,64 @@
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9.-]+/[A-Za-z0-9_.-]+$"
       }
+    },
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "flow.stage-bottleneck@1": {
+          "type": "object",
+          "properties": {
+            "input_backpressure": {
+              "type": "object",
+              "properties": {
+                "numerator": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "denominator": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*$"
+                }
+              },
+              "required": [
+                "numerator",
+                "denominator"
+              ],
+              "additionalProperties": false
+            },
+            "output_starvation": {
+              "type": "object",
+              "properties": {
+                "numerator": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "denominator": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*$"
+                }
+              },
+              "required": [
+                "numerator",
+                "denominator"
+              ],
+              "additionalProperties": false
+            },
+            "min_samples": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          "required": [
+            "input_backpressure",
+            "output_starvation",
+            "min_samples"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -343,7 +499,8 @@
     "metrics",
     "findings",
     "limitations",
-    "extensions"
+    "extensions",
+    "configuration"
   ],
   "additionalProperties": false
 }

@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chiselator:analysis:probe-event:0.2.0",
+  "title": "Draft interface, queue and wait observation",
+  "$comment": "Draft planning contract. Cross-record invariants require semantic validation.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "0.2.0"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "graph_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "seq": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "time": {
+      "type": "object",
+      "properties": {
+        "fs": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "delta": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "phase": {
+          "enum": [
+            "active",
+            "inactive",
+            "nba",
+            "read-write",
+            "read-only",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "fs",
+        "delta",
+        "phase"
+      ],
+      "additionalProperties": false
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1
+    },
+    "data": {
+      "type": "object"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "artifact": {
+            "type": "string",
+            "minLength": 1
+          },
+          "record": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "artifact",
+          "record"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "graph_id",
+    "seq",
+    "time",
+    "kind",
+    "data",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "kind": {
+          "const": "interface.samples"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "channel_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "domain_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "edge_start": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            },
+            "edge_end": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            },
+            "clock_state_seq": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            },
+            "classification": {
+              "enum": [
+                "transferred",
+                "backpressured",
+                "starved",
+                "idle"
+              ]
+            }
+          },
+          "required": [
+            "channel_id",
+            "domain_id",
+            "edge_start",
+            "edge_end",
+            "clock_state_seq",
+            "classification"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "queue.snapshot"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "queue_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "occupancy": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "tokens": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "queue_id",
+            "occupancy",
+            "tokens"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "queue.enqueue"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "queue_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "token_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "queue_id",
+            "token_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "queue.dequeue"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "queue_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "token_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "queue_id",
+            "token_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "wait.begin"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "wait_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "node_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "wait_id",
+            "node_id",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "wait.end"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "wait_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "node_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "wait_id",
+            "node_id",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "coverage.gap"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "samples": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "queues": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "waits": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "end_fs": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "samples",
+            "queues",
+            "waits",
+            "end_fs",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

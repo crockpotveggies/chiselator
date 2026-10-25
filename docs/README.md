@@ -16,4 +16,4 @@ Start with [stack status](integration-status.md). chisel-async and RISCay-MCU ar
 | Which algorithms and charts should we use? | [Research and algorithm decisions](flow-analysis-algorithms.md) |
 | What remains separate physical work? | [Physical implementation boundary](chip-build-plan.md) |
 
-The six implementation specifications take precedence over broad architecture sketches. The plugin and graph/event documents refine public analysis interfaces without changing circuit execution semantics. Schemas are draft version `0.1.0`; prose owns cross-record invariants. Upstream documents own product APIs, source pins and test receipts. Historical dates describe prior research, not fresh verification of all cited tools.
+The six implementation specifications take precedence over broad architecture sketches. The plugin and graph/event documents refine public analysis interfaces without changing circuit execution semantics. Schemas are draft version `0.2.0`; prose owns cross-record invariants. Upstream documents own product APIs, source pins and test receipts. Historical dates describe prior research, not fresh verification of all cited tools.
