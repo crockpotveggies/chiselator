@@ -148,6 +148,10 @@ def validate_bundle(graph, capture, events, result=None, probes=None):
             domain(data['domain_id'], 'clock')
             prior = clock_edges.get(data['domain_id'], (0, 0))[0]
             require(int(data['edge_index']) > prior, 'nonincreasing clock edge')
+            pc = capture['probes']['coverage'] if capture['probes'] else None
+            sampled_domains = {channels[c]['sampling_policy']['domain_id'] for c in pc['samples'] if c in channels and channels[c]['sampling_policy'] is not None} if pc else set()
+            if prior and pc and pc['status'] == 'complete' and data['domain_id'] in sampled_domains:
+                require(int(data['edge_index']) == prior + 1, 'noncontiguous consumer edges in complete probe capture')
             clock_edges[data['domain_id']] = (int(data['edge_index']), time)
             edge_records[(data['domain_id'], int(data['edge_index']))] = (event, clock_states.get(data['domain_id']))
         elif kind == 'clock.state':

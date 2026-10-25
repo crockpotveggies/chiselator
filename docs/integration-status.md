@@ -41,4 +41,14 @@ The library's `contract-v3.schema.json` and `trace-v1.schema.json` are upstream 
 4. Run MCU boot, memory/MMIO, wait/wake and reset/persistence cases against independent retirement/effect references. Add application firmware profiles separately.
 5. Qualify analysis capture and plugins against the same runs, then release packaging. Upstream passes are inputs to these gates, not substitutes for them.
 
+The following are **requested upstream dependencies**, recorded October 25 for the proposed [probe contract](graph-event-contract.md#interface-samples-queues-and-waits). They do not claim a newer inspection of the pinned library. chisel-async owns the names, semantics and ABI; this task does not edit that repository or prescribe concrete probe names.
+
+| Upstream chisel-async ask | Chiselator needs | Qualification dependency |
+| --- | --- | --- |
+| FIFO enqueue/dequeue/occupancy probes | Stable storage identity/capacity, exact initial occupancy and resident token identities, committed enqueue/dequeue identity/order, and explicit reset behavior | Bind the library's declared ABI, compare raw observations with an independent queue trace, then qualify snapshot integration and capture transparency |
+| Per-component wait vocabularies | Versioned reasons and obligation identity for supported components, with begin/end, overlapping obligations, reset and initial-state rules; absent reason remains unknown | Import the authoritative vocabulary instead of inferring names; qualify known, unknown and unsupported cases against independent component tests |
+| Probe ABI and export preservation | Machine-readable versioned declarations linking storage/obligations/interfaces to source and lowered bindings; actual consumer-edge/polarity and clock-state availability; compatibility/semantic hashes | Preserve requested observation points through CIRCT/optimization and reject an incompatible executor or analysis request explicitly |
+
+Chiselator cannot qualify these runtime captures until upstream exposes the contracts/probes and independent fixtures. The local three-bundle kit only validates hand-authored normalized records; synthetic `fixture.*` vocabularies are not library API proposals. Core simulation does not depend on installing the analysis plugin, and missing optional detail must not invent healthy metrics. Required bottleneck observations that cannot be bound make the requested analysis UNSUPPORTED.
+
 Historical library build milestones and old MCU capacity estimates have been removed from active simulator guidance. Their history remains in Git and the owning repositories; do not maintain a second component backlog here.

@@ -21,8 +21,8 @@
   },
   "inputs": {
     "graph_sha256": "7631560e4078d04bd7e20f58c0427019e4f3be6c80df6141f684d456a6c2399e",
-    "events_sha256": "889befaaf347a10955955760fcce26b4ec3df45d76d528ebf9edeb3bc768eb6e",
-    "probes_sha256": "2e3a551ae7c614f758dd9c2d609f0b54782252b3c9a4b59979b06f1a55e562e2"
+    "events_sha256": "31fed2b2b2968aef4b9a2bead5324beac78cdf96bd7ea7f69596e81bf76ac148",
+    "probes_sha256": "18e31cc1820717db5be357684f0f2133e201e6f55170d1e8a2edd3604752ca90"
   },
   "configuration": {
     "flow.stage-bottleneck@1": {

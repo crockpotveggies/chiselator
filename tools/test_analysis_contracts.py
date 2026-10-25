@@ -255,6 +255,13 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'empty/overlapping sample interval'):
             validate_bundle(g,c,e,r,p)
 
+    def test_missing_consumer_edge_in_complete_capture(self):
+        g,c,e,r,p = self.bundle()
+        edge = next(v for v in e if v['kind']=='clock.edge' and v['data']['edge_index']=='3')
+        edge['data']['edge_index']='30'
+        with self.assertRaisesRegex(ValueError,'noncontiguous consumer edges in complete probe capture'):
+            validate_bundle(g,c,e,r,p)
+
     def test_queue_over_capacity(self):
         g,c,e,r,p = self.bundle()
         snapshot=next(v for v in p if v['kind']=='queue.snapshot')
@@ -279,7 +286,8 @@ class PipelineTests(unittest.TestCase):
         g,c,e,r,p=self.bundle()
         e[0]['kind']='queue.snapshot'
         e[0]['data']={'queue_id':'q:middle','occupancy':0,'tokens':[]}
-        with self.assertRaises(ValidationError): validate_bundle(g,c,e,r,p)
+        with self.assertRaises(ValidationError) as failure: validate_bundle(g,c,e,r,p)
+        self.assertEqual(failure.exception.validator, 'oneOf')
 
 
 if __name__ == '__main__':
