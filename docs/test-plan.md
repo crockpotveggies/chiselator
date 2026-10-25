@@ -143,16 +143,28 @@ The IDs below name proposed suite families. Each row expands into small fixtures
 
 The GSIM stale-flag report motivates OPT-01, but its patches were not available for inspection. Reconstruct the failure pattern from the reported behavior and label its provenance. A correctness-only trace may miss needless execution of pure logic; activation-count assertions are essential. Profiling fixtures must produce known nonzero useful/wasted activation counts and compile the instrumented build in CI.
 
-The [execution data model](specs/06-execution-data-model.md#performance-claims-and-qualification) adds cases within these suite families, not a second semantic oracle:
-
-- SEM-02/03: coincident independent clocks sample before either batch commits; a generated edge sees the proper later state. Compare normal scheduling with clock-calendar bypass at equal-time event ties, outgoing delayed work, paused/reset clocks, callbacks, run limits and budget resume. Verify the fast path executed before calling the comparison an optimization test.
-- OPT-01/02 and ASY-02/03: duplicate pure wake requests may merge, but a same-tick req/ack pulse must retain required edge-sensitive reactions and observations. Compare tracked/full-scan and monitors off/on; count future enqueues separately from activations and ordered current-time effects. Inject pulse loss and premature sampler commit as negative controls.
-- SEM-06 and DUR-02: validate subscription ranges, state/staging ownership, backend index overlays and actual C/Rust record layouts; exhaust generation/epoch/order counters without wraparound resurrecting canceled work. Pending payloads survive cancellation cleanup and resumption correctly.
-- FLOW-03: bridge acceptance follows actual RTL storage and sampling edges; observers retain separate per-channel transaction identities joined by `boundary.link`. Inject hidden buffering, fabricated capture while paused and payload-based identity matching; require rejection or trace mismatch.
+The [execution data model](specs/06-execution-data-model.md#validation-and-acceptance) groups its implementation checks as DM-01–06 below. Reuse the relevant semantic fixtures and independent oracles; these suites do not establish another definition of correct behavior.
 
 Bundled-data tests should state the inequality being checked, such as earliest capture-control arrival exceeding latest data-valid arrival plus the receiving element's required margin, together with hold/reset obligations. Select corners consistently with the actual timing model; arbitrary mixing of incompatible extrema is not a substitute for a defined analysis. Include annotation loss and wrong pin mapping as deliberately failing fixtures.
 
 QDI tests must declare environmental and isochronic-fork assumptions. Zero-delay settling alone does not establish QDI correctness, and finite random-delay sampling cannot prove it. Similarly, modeled synchronizer latency or arbitration does not reproduce analog metastability. These limits belong in test reports as well as documentation.
+
+### Execution data model qualification
+
+DM-01–06 are proposed suites for spec 06, not implemented tests. They refine existing P0 execution/profiling requirements without increasing the 32 P0 feature count. Native CPU cases qualify the baseline; SIMD/GPU layouts, compact event encoding and queue/fast-path optimizations require their corresponding cases only when implemented or advertised. CPU fallback cannot satisfy device cases. The [specification](specs/06-execution-data-model.md) owns data-model invariants and counter definitions.
+
+| Suite | Required cases and pass condition | Related suites |
+| --- | --- | --- |
+| DM-01 Wake classification | A hand-authored zero-delay chain creates no internal future deliveries; account for harness stimuli separately. Adding one transport delay schedules one captured delivery per input transition; test inertial cancellation separately. One managed edge dispatches arbitrary normalized zero-delay register counts without per-register future entries; explicitly delayed writes remain timed. A closed gate has no sampler. Preserve same-tick pulses, repeated generated edges, reactivation after consume and already-satisfied waits | SEM-02/03/06, OPT-01, ASY-01/03 |
+| DM-02 Fast-path equivalence | Normal scheduling versus a demonstrably exercised fast loop: coincident/generated edges, event ties, incoming/outgoing async work, callback/harness/ACT obligations, reset, pause/resume, inclusive run limit and interior budget resume. Exact required observations, batch sampling and exactly-once effects | SEM-02/03, OPT-02, ASY-02/03 |
+| DM-03 Layout independence | Each advertised native/SIMD/device layout agrees with independent expectations on masked wide values, memory, staging, continuations, effects and RNG choices. Cover partial batches, completed neighbors, lane compaction/regrouping and stable identity mapping. Compile real C/Rust/device size/offset/alignment checks; versioned RNG known vectors agree | SEM-01/04/06, INT-01, REP-01, optional backend qualification |
+| DM-04 Bounded queues | Queue/payload/log capacity at zero/one/limit, captured payload lifetime, cancellation cleanup, far-future buckets, ring wrap and same-bucket ordering. Overflow retains pending work for supported resume or returns explicit failure, without duplicate effects. Exercise invalid tags, maximum indices, sequence/generation exhaustion and stale canceled records before any mutation | SEM-03/06, ASY-03, DUR-02, optional backend qualification |
+| DM-05 Crossing transparency | Same executable plan with passive recording off/on preserves simulated deliveries, activation order and choices. Different observation-policy builds preserve common semantic observations without requiring identical internal counts. Bridges use actual RTL storage/edges/reset ownership and per-channel `boundary.link` lineage; paused/gated clocks cannot fabricate capture | OPT-02, ASY-02/04, FLOW-03/04/07 |
+| DM-06 Overhead accounting | Each exact counter has a hand-derived expected value and scope/denominator. Cover pure/stateful work, canceled events, managed calendars without heap insertion, clockless/idle scopes, partial batches and fast-path exits. Repeat full-count profiles under the same policy; sampled device metrics declare estimation. Instrumented build compiles and executes meaningful nonzero work | OPT-01/02, INT-04, DUR-02 |
+
+Near-limit tests seed counters close to exhaustion; they need not execute billions of events. The compact event path must fail before sequence/generation wrap unless a separately qualified wider/rebase scheme is active. Validate tags before selecting cancellation-owner tables and tokens before applying deliveries. A newly scheduled transport value must not invalidate an older transport transaction.
+
+Required negative controls include a lost same-tick pulse, a slot-wide bit suppressing a second edge, premature sampler commit, a missed already-true wait, stale-token mutation, illegal key renumbering, a dropped overflow event, hidden bridge buffering and RNG keyed by lane. Each control must fail its intended checker. Counter controls must fail even when a final-state hash still matches. Documentation/schema checks cannot mark any DM suite complete.
 
 ## Generated tests and tests of the checkers
 
@@ -351,10 +363,10 @@ This table covers the complete P0 feature list. Suite ownership becomes a named 
 | Requirement IDs | Main suites |
 | --- | --- |
 | SIM-01 | SEM-05, INT-02 |
-| SIM-02, SIM-04 | SEM-02, SEM-04 |
-| SIM-03 | SEM-03, ASY-03 |
+| SIM-02, SIM-04 | SEM-02, SEM-04, DM-01, DM-02 |
+| SIM-03 | SEM-03, ASY-03, DM-01, DM-02, DM-04 |
 | SIM-05 | SEM-01, ASY-01, ACT-01 |
-| SIM-06 | SEM-06, OPT-02, REP-05, PKG-01 |
+| SIM-06 | SEM-06, OPT-02, REP-05, PKG-01, DM-03, DM-04 |
 | ASYNC-01, ASYNC-02 | LIB-01, LIB-02, LIB-03, LIB-04, LIB-05, LIB-06, ASY-01, ASY-02 |
 | ASYNC-03 | ASY-02, ASY-03, INT-04 |
 | ASYNC-04 | ASY-03, ASY-04, REP-01, REP-04 |
@@ -362,13 +374,13 @@ This table covers the complete P0 feature list. Suite ownership becomes a named 
 | TIME-01 | TIM-01, TIM-02 |
 | API-01 | INT-01, DUR-01 |
 | API-02, API-03, API-04 | SEM-03, INT-02 |
-| API-05 | ASY-02, INT-02, INT-04 |
+| API-05 | ASY-02, INT-02, INT-04, DM-05 |
 | CLI-01, CLI-02 | INT-03, PKG-01 |
 | CLI-03, CLI-04 | INT-03, DUR-03 |
 | CLI-05 | REP-01, REP-05 |
 | OBS-01, OBS-02 | INT-04, TIM-01 |
 | OBS-03, OBS-04 | INT-04, ASY-02, TIM-02 |
-| OBS-05 | OPT-01, OPT-02, INT-04 |
+| OBS-05 | OPT-01, OPT-02, INT-04, DM-06 |
 | DIST-01, DIST-02, DIST-03 | PKG-01, DUR-04, REP-05 |
 | MCP-01, MCP-02 | INT-05, DUR-01, DUR-03 |
 | EXT-01 | PLG-01, PLG-03, DUR-01, DUR-03 |

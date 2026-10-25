@@ -1,184 +1,337 @@
 # 06 — Execution data model
 
-Draft, October 25, 2026. This specification defines the proposed storage and dispatch model for clocked, clockless and hybrid simulation. It refines [execution semantics](01-execution-semantics.md) and the [compiler/runtime interface](02-compiler-runtime-interface.md); it does not change their scheduling rules or introduce another HDL IR. CIRCT remains the compiler foundation. The engine and the structures below are not implemented.
+Draft, revised October 25, 2026. Status and scope: [specification index](README.md). This specification defines the storage and scheduling representation implementing [execution semantics](01-execution-semantics.md) and refining the [immutable plan interface](02-compiler-runtime-interface.md#immutable-plan). **Specification 01 governs observable behavior; if the documents disagree, 01 wins and this document must change.** CIRCT remains the compiler foundation. The simulator and production layouts below are not implemented.
 
-The central decision is **exact event delivery plus coalescible region activation**. Delays and suspended processes need ordered delivery; eligible combinational reevaluation needs inexpensive dirty bits. Both clocked and async execution use this distinction. Neither a global cycle nor a fixed time step is required.
+One logical model serves clocked, clockless and hybrid designs without a global cycle or fixed time step. Exact timed deliveries coexist with inexpensive region activations and ordered current-time effects. Clocked samplers do not need one future event per register; async logic does not need a future event for every zero-delay change. Backends choose physical layouts while preserving the same circuit behavior.
+
+## Layers
+
+```mermaid
+flowchart TB
+    ID["Identity overlay<br/>Semantic identities, dense indices, sources"] --> PLAN
+    PLAN["Immutable logical plan<br/>Signals, regions, subscriptions, state,<br/>clocks, drivers, memories, crossings"] --> SES
+    SES["Session<br/>Values, staging, initialization, activations,<br/>continuations, generations, epochs, RNG"] --> SCH
+    SCH["Scheduling structures<br/>Future deliveries, clock calendar,<br/>active, inactive, NBA, callbacks"] --> LOG
+    LOG["Commit stream<br/>Append-only; never read by kernels"] --> OBS[Monitors, flow events, waveforms]
+    PLAN -. "backend partition and layout overlay" .-> LAY[CPU session-major / batch lane-contiguous]
+    SES -. "checked storage bindings" .-> LAY
+```
+
+| Layer | Lifetime and sharing | Kernel access |
+| --- | --- | --- |
+| Identity overlay | Compiled artifact, shared across runs | Stable IDs/order keys through checked bindings; no source-graph traversal |
+| Logical plan | Compiled artifact, shared by sessions and backend variants | Read-only checked bindings |
+| Backend partition/layout | Immutable artifact metadata plus executor-owned prepared bindings | Generated addressing and declared kernel entry points |
+| Session state and scheduling | One run, including device-resident state | State within declared permissions; scheduling through helpers |
+| Commit stream and monitor state | One run, bounded streaming storage | Append through validated helpers; never read as circuit input |
+
+The diagram describes ownership and data flow, not an instruction to delay all observations until settling. Observers attach to required commit points.
+
+## Identity
+
+Checked dense indices, initially `u32`, address plan tables. Semantic IDs identify channels, constraints, effects, primitives and source objects in the [graph record](../graph-event-contract.md#graph-record). They are not interchangeable. The overlay supports splitting/replication and fusion, with explicit one-to-many and many-to-one provenance. Effects and observations retain one logical owner; pure replicas cannot multiply them.
+
+Indices are stable only within their artifact/layout variant. Cross-artifact comparisons require an explicit logical mapping. Backend indices, allocation addresses, workers and GPU lanes cannot select event order or random choices. Index/count conversion overflow rejects the variant before truncation.
 
 ## Immutable plan and backend layout
 
-An immutable logical plan is shared by independent sessions. A backend variant supplies its own region partitioning, kernels and physical layout, with a checked mapping back to that logical plan. A CPU word offset is not a universal GPU address. The notation below describes responsibilities, not public Rust types or a frozen binary ABI.
+Hot tables use dense arrays and compressed sparse row (`Csr`) adjacency. Structure-of-arrays is a candidate for hot fields, not a requirement for every cold metadata record. The following Rust sketches describe ownership and required information, not public ABI types or compilable declarations.
 
-| Table | Contents and invariants |
+```rust
+struct Plan {
+    signals: SignalTable,        // width, signedness, logical slot, owner, subscriber range
+    subs: Vec<Subscription>,
+    regions: RegionTable,        // kind, input/output ranges, effects, activity, rank, class
+    state: StateTable,           // kind, cur/optional next slots, init policy, reset owner
+    clocks: Vec<ClockSource>,
+    drivers: DriverTable,        // destination, delay/cancel rule, semantic ordering owner
+    memories: MemoryTable,       // geometry, ports, clocks, latency, collision policy
+    processes: ProcessTable,     // continuation schema and static wait-site descriptors
+    crossings: Vec<Crossing>,
+    observe: ObservationPlan,
+    channels: Vec<ChannelMonitor>, // protocol/signal bindings; monitors only
+    ids: IdentityOverlay,
+}
+struct BackendVariant {
+    partitions: PartitionOverlay,
+    kernels: KernelBindings,
+    layout: BackendLayout,       // logical slots -> checked offsets, alignment, strides
+}
+struct Subscription { pred: Pred, target: Target }
+enum Pred { Change, Posedge, Negedge, High, Low }
+enum Target { Region(RegionIdx), WaitSite(WaitSiteIdx), Monitor(MonitorIdx) }
+enum RegionKind { Pure, Sampler, Process, Primitive }
+enum ClockPolicy {
+    Managed { high_fs: u64, low_fs: u64, pausable: bool },
+    SignalDriven,               // includes derived/gated clocks; no synthetic edges
+}
+struct Crossing {
+    signals: CsrRange<SigIdx>,
+    producer: ClassId,
+    consumer: ClassId,
+    sample_edge: Option<SubIdx>,
+    lookahead_fs: u64,           // conservative proven lower bound; zero unless established
+    proof: Option<ConstraintRef>,
+}
+```
+
+| Record | Required invariant |
 | --- | --- |
-| Signals | Width, signedness, logical storage identity, driver ownership, visibility and subscriber range |
-| Subscriptions | Compressed sparse row adjacency from a signal to change/posedge/negedge/level predicates and a region or process wait slot; dynamic waits additionally have session-owned registrations |
-| Regions | `Comb`, `ClockSample`, `Process` or `Primitive`; inputs/outputs, kernel binding, effects, `Tracked`/`Always` activity policy and topological rank where valid |
-| State elements | Register current/next bindings, latch/C-element/mutex state, primitive-private state, initialization bit, reset domain and owner; memory ports and delay models reference their separate descriptors |
-| Clocks | Signal, eligible positive/negative-edge samplers, optional managed period/pause policy; generated RTL clocks retain their actual signal semantics |
-| Drivers | Destination, captured-value policy, transport/inertial rule and cancellation owner |
-| Memories | Geometry, ports, latency, masks, initialization and collision policy |
-| Crossings | Source/destination regions, subscribed signals, actual sampling clock where relevant and proven minimum lookahead; scheduling/placement metadata only |
-| Observation plan | Required signals, commit probes and effects; determines which transformations are eligible |
-| Channel monitors | Protocol/version and req/ack/data/clock/reset bindings used only to observe the circuit |
-| Identity overlay | Dense index to stable semantic identity and source; explicit one-to-many mappings under splitting/replication |
-| Backend layout | Checked offsets, sizes, alignments, word widths, batch strides, kernel ABI and artifact hashes |
+| Signal | One authorized logical writer under the supported policy; delayed writes may reference that writer without becoming independent drivers. Unsupported multi-driver resolution fails. Width/signedness/masking are explicit; physical word offsets belong to the backend layout |
+| Region | One of spec 02's four kernel kinds, complete input dependencies, declared effects and kernel binding. `Pure` regions cannot perform scheduler/state/external effects; their declared outputs/change information are permitted. Topological rank applies only within a proven acyclic pure cone |
+| Subscription | Complete relevant signal dependencies, including slices/edge predicates. Static wait sites are bound to session-owned live registrations and generations. `High`/`Low` tests are also evaluated when a wait is armed, so an already-satisfied condition is not missed |
+| State | Edge-sampled state has current and owned staging slots. Latches/C-elements/mutexes have current and any contract-declared private state; no universal next-state swap. Required primitive state has initialized status |
+| Clock | Positive representable managed durations; source signal and actual eligible edges. A gated/derived signal triggers sampling only when that signal transitions |
+| Driver | Explicit delivery/cancellation policy and owner. Eligible zero-delay pure assignments use region outputs; delayed assignments and timed effects use driver/delivery descriptors. A newer transport write does not cancel an older one |
+| Process | Frame size/alignment and wait-site schema are checked by the backend layout; dynamic registrations and captured values are session-owned |
+| Crossing | Compiler-derived region/class boundary with endpoint provenance. It adds no state, buffer, ordering or transaction identity |
+| Observation plan | Requested transitions/commit points must survive optimization; reject an incompatible variant |
+| Channel monitor | References circuit/probe bindings and reset contracts; kernels cannot read derived monitor state |
 
-Topological rank applies within a proven acyclic pure region. It does not impose a global order on arbitrary feedback. Stateful async feedback uses qualified primitives/processes; SCC analysis alone cannot supply its semantics. Pure replication preserves one logical identity, and effects have one execution owner.
+An execution class is a scheduling/partition grouping with declared clock/async dependencies, not a new hardware clock or an independence proof. A region may depend on several domains. Topological rank or class number cannot override process order, phase order or stateful feedback semantics. Stateful async feedback uses qualified primitives/processes; SCC detection alone cannot choose its behavior.
 
-Keep compiler tables compact and indexed. Array-of-structures versus structure-of-arrays is a measured choice per table/backend; there is no requirement to force every metadata record into the GPU layout. Validate subscription completeness, effect ownership, storage bounds and identity mappings before execution.
+Region size is compiler policy: a GSIM-style pure supernode, a small async cone, a primitive binding or a process. Backend replication/fusion preserves logical dependencies and exactly-once effect ownership. If Arc owns physical state allocation, its offsets are described by the layout overlay rather than forced into a second allocation.
 
 ## Per-session storage
 
 ```rust
-// Illustrative internal ownership, not compilable declarations or a public ABI.
 struct Session {
-    now: TimePoint,                  // observed ticks, delta and current phase
-    values: Words,                   // current circuit values and state
-    memories: MemoryStorage,         // session-owned contents with checked bindings
-    next: StagingBuffers,            // sampled state, write masks and batch ownership
+    now: TimePoint,               // exact i64 femtoseconds, checked delta, current phase
+    values: Words,                // current signals/state; width-masked
+    memories: MemoryArenas,
+    next: StagingBuffers,         // values, write masks and sampling-batch ownership
     initialized: BitSet,
-    active: RegionActivity,          // bits, summary words and reactivation generations
-    continuations: ContinuationArena,
+    activity: RegionActivity,     // pending bits, summary words, optional per-region generations
+    continuations: AlignedArena,
     waits: WaitRegistrations,
-    driver_generations: Generations,
-    clocks: ClockStates,             // running/paused, polarity, generation, next edge
+    generations: GenerationTables, // typed owners: driver, wait registration, managed clock
+    clocks: Vec<ClockState>,      // running/paused, next edge, polarity
     reset_epochs: Epochs,
     rng: KeyedCounters,
-    future: FutureEventQueue,
-    clock_calendar: ClockCalendar,
-    ready: ReadyWork,                // ordered process/primitive deliveries as required
-    inactive: InactiveWork,
-    nba: OrderedStagedWrites,
-    callbacks: CallbackQueues,
-    payloads: CapturedPayloadArena,
-    observations: ObservationState, // monitors and bounded append-only commit stream
+    crossing_dirty: BitSet,       // per crossing/consumer; conservative optimization hint
+    sched: Scheduler,
+    observation: ObservationState, // commit stream, monitors and coverage state
 }
 ```
 
-Pending transitions live in delivery queues/calendar, with payload arena references where needed. Primitive state may retain a cancellation generation or pending-delivery handle, but must not contain a second independently authoritative copy of the transition. `next` is staging for a particular sample/commit batch, not a second entire model that becomes current once per global cycle. Behavioral NBA batches retain their specified ordering rather than being collapsed into an unordered next-value array.
+State exists continuously between events. `next` is staging for a particular normalized sampling batch, including supported sampled ports where required. Behavioral processes retain their assignment/NBA semantics; they are not automatically double-buffered. Memories and aligned continuation frames remain session-owned on every backend. The initial CPU layout may use a `u64` for values up to 64 bits and masked multiword storage above that; narrower native storage is a qualified layout optimization.
 
-Clock pause, wait replacement and inertial cancellation have distinct generation owners. Counters for generations, deltas, epochs, event order and random decisions are checked; wraparound must not revive stale work. A backend narrowing a counter must reject or stop before exhausting it. Cancellation tombstones and retired payloads are reclaimed only when no live delivery can reference them.
+Pending transitions reside in the scheduler, which **is part of resumable session state**. They are not duplicated in the circuit-value arrays. Primitive state can retain cancellation generations/handles, but not a second authoritative pending payload. Current-time queues, captured payloads, staged writes and wait registrations must survive budget stops and any future checkpoint contract.
 
-Handshake monitor state is derived from committed signals/probes. Circuit kernels cannot read it. Actual handshake storage in bridge RTL remains ordinary circuit state. Reset epochs and random counters follow semantic owners, including accepted persistent effects that survive an application reset. Observation streaming may apply backpressure or stop at an explicit frontier; it cannot change circuit choices or silently lose required records.
+Generation owners are typed: decoding a tagged target selects the correct driver, wait or clock table. A single unchecked generation index cannot alias these namespaces. Use consume-before-run or per-region generations to preserve reactivation; a global per-slot marker cannot suppress later work in the same slot. Checked generations, epochs, order counters and deltas never wrap and revive stale work.
+
+Use a versioned counter-based random generator with the keys required by [spec 05](05-artifacts-compatibility.md#replay-and-random-choices): algorithm version, user seed, stable session identity, semantic object and decision kind. Advance its counter only at the specified model decision. Known-vector tests must agree across native/device implementations. Compaction moves the counters with the session; lane number never becomes a key.
+
+Protocol phase, per-channel ordinals and live tokens are monitor state derived from commits. Actual bridge state remains RTL/qualified primitive state. Monitor epochs follow observed circuit reset domains; monitors cannot reset the circuit or discard an accepted persistent effect owned by another domain.
 
 ## Two dispatch mechanisms
 
-| Mechanism | Purpose | May coalesce? |
+The distinction is between future-time delivery and current-time dispatch. Current-time dispatch includes both coalescible bits and ordered work; it is not universally one bit per region per timestamp.
+
+| Mechanism | Meaning | Coalescing and storage |
 | --- | --- | --- |
-| Future deliveries | Positive-delay driver transactions, timed process wakeups and future external input | No, except cancellation/filtering explicitly permitted by the model |
-| Clock calendar | Managed clock edge occurrences with exact times and generation checks | No; separate storage may avoid general queue operations |
-| Current-time ordered work | Process resumes, required primitive transitions, inactive work, NBA writes and callbacks | Only under that operation's explicit semantics |
-| Region activation | An eligible region must recompute from its inputs in the current evaluation round | Yes, when repeated requests require the same reevaluation |
+| Future event | Captured delayed write, timed wakeup, scheduled harness drive or external injection | Preserve every required delivery except explicit cancellation/filtering; general future queue |
+| Managed edge | One clock signal transition at an exact time | Separate calendar, or equivalent event representation; no per-register future entries |
+| Pure activation | Recompute an eligible pure region from its inputs in this evaluation round | Pending bit/worklist entry may coalesce until consumed; later reactivation survives |
+| Ordered current-time work | Edge occurrences, sample batches, process resumes, primitive transitions, inactive work, NBA and callbacks | Preserve required order/multiplicity under their contracts; use slot worklists and staging |
 
-Updating a register or zero-delay req/ack signal does not automatically allocate a future event. Its committed change evaluates subscriptions and sets eligible activation bits or registers required current-time work. Pure combinational supernodes can then execute in topological order, skipping inactive regions. Always-run regions still publish changes to tracked consumers. Consume activation before evaluation, or use generations, so evaluation cannot erase a new activation.
+A zero-delay req/ack chain can avoid all future-queue entries while still requiring ordered primitive/process work. A transport delay line schedules one captured delivery for each input transition; inertial suppression follows its distinct contract. A managed clock occurrence changes one signal and dispatches its sampler group. An explicitly delayed register/NBA write remains a timed obligation; the no-per-register-event optimization applies to normalized zero-delay sampling. Derived/gated clocks follow actual signal transitions with no synthetic periodic event.
 
-**Coalescing wake requests is not permission to erase signal transitions.** A same-tick pulse can trigger an edge-sensitive process, latch, C-element, assertion or required waveform/protocol observation. Preserve required transition/trigger information even if a later change overwrites the current value. Deliver sensitive reactions under the process/phase contract; do not force a suspended process to execute between another process's consecutive blocking statements. Merge pure reevaluations only across boundaries where the compiler proves that intermediate values are not semantically required. An observation mode may require a less aggressively fused plan. Full-scan mode retains trigger conditions and executes effects exactly once.
+Consume activation before evaluation and notify subscribers when outputs change; always-run regions still activate tracked consumers. **Coalescing a wake request cannot erase a required pulse, edge or effect.** Preserve trigger/commit information even if the current value is later overwritten. Repeated derived edges at the same physical timestamp may need distinct sample batches. Stateful/process wakeups coalesce only when their own semantics permit it. Do not force a waiting process to execute between another process's consecutive blocking statements merely to preserve a pulse; retain the trigger and follow spec 01's process/phase rules.
 
-### Event time and identity
+Full-scan mode retains trigger conditions and executes effects exactly once. Pure-region fusion can discard intermediate values only when neither circuit semantics nor the requested observation policy requires them.
 
-A logical future-delivery record contains:
+## Scheduling structures
+
+A logical delivery carries physical time, a semantic producer/order sequence, a typed destination and delivery class, a cancellation identity and captured payload. The baseline may use wider fields. The following **optional compact encoding** packs the kind tag into the destination, making a 32-byte record possible:
 
 ```rust
-struct FutureDelivery {
-    ticks: i64,                     // exact nonnegative femtoseconds
-    order: SemanticOrderKey,        // stable producer identity and local sequence
-    target: RuntimeTarget,
-    kind: DeliveryKind,             // also selects the proper current-time work class
-    generation: CancellationToken,
-    payload: CapturedPayloadRef,    // inline value or checked arena slice
+#[repr(C)]
+struct CompactEvent32 {
+    ticks: i64,
+    order: u64,        // high 32: semantic order-key index; low 32: local sequence
+    target: u32,       // high 4: validated tag; low 28: target-table index
+    generation: u32,   // checked token of the decoded cancellation owner
+    payload: u64,      // inline captured value or validated payload-arena offset
+}
+
+const _: () = {
+    assert!(std::mem::size_of::<CompactEvent32>() == 32);
+    assert!(std::mem::offset_of!(CompactEvent32, ticks) == 0);
+    assert!(std::mem::offset_of!(CompactEvent32, order) == 8);
+    assert!(std::mem::offset_of!(CompactEvent32, target) == 16);
+    assert!(std::mem::offset_of!(CompactEvent32, generation) == 20);
+    assert!(std::mem::offset_of!(CompactEvent32, payload) == 24);
+};
+```
+
+This is a backend encoding candidate, not the public file format or a frozen ABI. Record alignment/byte order in the layout and test the matching C/device consumer. `repr(C)` alone does not establish cross-target calling compatibility. [Rust layout rules](https://doc.rust-lang.org/reference/type-layout.html#reprc-structs).
+
+The encoding has explicit obligations:
+
+- Tags define destination class, delivery work class and payload interpretation through a versioned descriptor. Unknown tags, wrong target kinds or indices beyond the 28-bit range reject the record. Mask/decode `target` before indexing a table; do not use the tagged value as `generations[target]`.
+- The high order-key index refers to a deterministic, semantic-order-preserving producer map. The local sequence belongs to that producer/session, not a worker or observation stream. Validate plan-time capacity before compilation; deterministic tie-breaking never legitimizes conflicting unordered writes.
+- Check runtime sequence/generation exhaustion **before scheduling or canceling**. The initial compact path stops with an explicit limit diagnostic; use a wider encoding for long runs where required. Silent wrap, reset-at-each-timestamp and ad hoc renumbering are forbidden. A future rebase/extension scheme must preserve the ordering and cancellation identities of all live queued work, waits and external references before it can be qualified.
+- Wide payload offsets have checked size, alignment, lifetime and width masking. Capture values when scheduled; delivery cannot reread the source. Reclaim payloads only after no live delivery references them.
+
+```rust
+struct Scheduler {
+    future: EventQueue,            // binary heap baseline; exact typed deliveries
+    clock_cal: ClockCalendar,      // one next occurrence per managed clock
+    ready: SlotWorklists,          // pure activations plus ordered process/edge/primitive work
+    inactive: InactiveWork,        // generation-checked #0 resumptions
+    nba: OrderedStagedWrites,     // captured NBA writes and normalized sampler batches
+    callbacks: CallbackQueues,
+    payloads: CapturedPayloadArena,
 }
 ```
 
-Payloads are captured when scheduled; delivery cannot reread a changed source. Transport preserves scheduled transitions; inertial cancellation obeys the [primitive contract](03-async-model-contracts.md). Unordered conflicting writes remain errors even when a deterministic key can order their records.
+Future records do not preassign delta. The slot state machine assigns the execution frontier when installing/processing work. A delayed NBA retains its delivery class. Sorting `(time, delta, phase)` cannot replace phase re-entry. Observation `seq` is a separate capture-stream identity.
 
-Future records do not preassign a delta number. The coordinator assigns delta/phase as work is processed and phases re-enter. Delivery kind preserves a delayed NBA's intended work class; removing a future delta field does not remove assignment semantics. `TimePoint` belongs to the execution frontier and observations. Sorting `(time, delta, phase)` cannot replace the iterative scheduler in spec 01. Neither physical lane, allocation address nor worker arrival order contributes to semantic ordering; observation `seq` is a separate capture-stream identity.
-
-An event with fields `i64 ticks, u64 seq, u32 dest, u8 kind, u32 generation, u64 payload` totals 33 bytes before padding and occupies 40 bytes with conventional 8-byte alignment. `repr(C)` preserves C layout rules, not a desired 32-byte size. A compact encoding would need explicit tags/limits or side tables and target layout tests. A GPU may use separate arrays for event fields. [Rust layout rules](https://doc.rust-lang.org/reference/type-layout.html#reprc-structs).
+Validate cancellation **before any value write, trigger or observation**. Stale records are discarded under their owner's rule. Managed clock pause invalidates future edges only; transport transactions survive newer writes unless an explicit reset/cancellation contract says otherwise. Preserve the [delay-line equality rule](03-async-model-contracts.md#primitive-library): a delivery already due at the current timestamp belongs to the due-driver batch before reactions create replacement candidates.
 
 ## Region execution and hybrid scheduling
 
-```mermaid
-flowchart TD
-    F[Exact future deliveries] --> S[Current-time scheduler]
-    C[Managed clock calendar] --> S
-    S --> K[Eligible clock samplers]
-    K --> N[Sample into staging then commit]
-    S --> P[Ordered processes and primitives]
-    N --> U[Committed changes and subscriptions]
-    P --> U
-    U --> A[Coalescible region activation]
-    A --> R[Evaluate eligible comb regions]
-    R --> U
-    U --> O[Read-only observation and channel monitors]
-    P --> F
-    U --> S
-    S --> Q[Quiescence and required callbacks]
-    Q --> T[Advance to earliest live obligation]
-    T --> S
-```
+The following realizes [spec 01's scheduling cycle](01-execution-semantics.md#time-and-event-ordering), not a substitute SV scheduler:
 
-The arrows describe work flow; spec 01's phase state machine controls ordering. Observations attach to their required commit points, not just final quiescence.
+1. **Resume or choose time.** If stopped inside a slot, resume its existing queues first. Otherwise choose the earliest live obligation across future queue, clock calendar and required external/callback frontiers, bounded by the authorized run limit. Discard stale heads safely. No-next-event is optional, not a sentinel. An idle `run_until(T)` advances to T; actual deliveries at T are processed inclusively before returning.
+2. **Install due work.** Validate tokens, then install due items in semantic order into their proper work classes. Preserve every required transition, trigger and commit record; do not assign all due values and retain only the final value. A wait registration wakes only if still live. Clock transitions retain their edge-occurrence context. Required observations publish at the corresponding commits, not step 6.
+3. **Drain active work.** Evaluate eligible pure regions in local topological order, process continuations in statement order and primitives under their contracts. Each normalized coincident sampling batch reads its eligible state before any of that batch's staged writes commit. Staging has masks and batch ownership. Do not combine all edges at the same physical time into one batch; a commit-generated edge belongs to the appropriate later boundary. Class/rank order cannot override these obligations.
+4. **Inactive and NBA.** Promote supported `#0` resumptions, return to active draining, and repeat until inactive work is empty. Then apply the current ordered NBA/sampler commit batch. Changes may reactivate work; re-enter active draining before a later NBA batch. Captured NBA payloads are never recomputed.
+5. **Callbacks.** At design quiescence run eligible read/write callbacks; permitted drives restart settling. Run read-only callbacks only after all current-time obligations finish. Stop/error/finish returns its actual frontier, not a fabricated settled result.
+6. **Advance.** Advance physical time only after current-time work and required backend exchanges are complete. Delta increments on the deferred-batch/callback re-entry defined by spec 01, not per assignment or merely because a signal crosses a region boundary.
 
-**Clocked execution.** One clock edge dispatches its eligible sampler kernels, rather than enqueuing one future event per register. For normalized registers triggered in the same sampling batch, sample `values` into staging before committing any of those writes. This includes coincident independent clock edges: exchanging registers must see the required pre-update state. An edge generated by a commit enters the appropriate later scheduling round and sees the state then visible. Behavioral processes preserve their own statement/NBA semantics. Committed outputs activate downstream subscribers in either clocked or async regions; settle all required current-time work before advancing.
+A coincident-edge register swap must read the required pre-update state in both samplers. A later generated edge observes the state then visible. Neither grouping by physical timestamp alone nor immediate commit after each sampler is sufficient.
 
-**Async execution.** Signal changes activate pure regions and qualified primitives/processes. Only an actual timing obligation needs future-time storage. Latch transparency, C-element hold, mutex choices and delayed transitions retain their registered model semantics. Bounded delta and work budgets diagnose zero-time nonconvergence; an intentional positive-delay oscillator remains valid. A clockless session may have no clock-calendar entries at all.
-
-**Crossings.** Execution uses ordinary subscriptions across region kinds. Buffering, synchronization, capture and acceptance behavior belong to the imported bridge RTL or its explicitly qualified binding. No scheduling adapter adds hidden storage or an extra acknowledgment. A clocked commit wakes async subscribers within the same timestamp under the normal phase rules; it does not unconditionally add a delta. An async change becomes visible to a clocked sampler at its actual eligible edge, with same-time ordering/reset rules preserved. A paused clock causes no synthetic capture.
-
-Crossing descriptors may constrain partitioning, batching and lookahead. Assume zero lookahead unless a conservative lower bound is proved from the declared model; a profile or typical handshake latency is not proof. Do not infer extra synchronizer latency or analog behavior from a crossing descriptor.
-
-The observation layer retains **one transaction identity per channel**, joined by `boundary.link` at the actual transfer point. Visibility, acceptance and persistent effect commit can occur at different times. They are not a single shared execution transaction. The [worked hybrid fixture](../examples/hybrid-flow/README.md) already demonstrates this separation; its public schema does not need to change.
+Async stateful feedback uses initialized C-elements, latches, mutexes or qualified processes; it is not an arbitrary fixed-point solver. Bound zero-time work/deltas and diagnose nonconvergence. A positive-delay oscillator remains a valid timed process. A clockless session can have an empty clock calendar.
 
 ### Fast clocked loop
 
-Managed clocks may use a small separate calendar with a cached minimum, making the next-frontier comparison constant-time. Updating/selecting among many clocks still has a measured cost; use a scan for a few clocks or a suitable indexed structure for larger sets. `next_event` returns the earliest live obligation across this calendar and the general queue, not merely the next heap item.
+A cached minimum makes comparison with the next managed edge inexpensive; updating a many-clock calendar still has a measurable cost. `next_event` includes the calendar and all other live obligations. The optimized loop may bypass general-queue operations and generic dispatch, while preserving the same semantic phases, only when:
 
-Queue bypass is valid only when:
+- The current slot has settled. The selected edge batch precedes all competing events, other clock obligations, external interactions and run limits. Ties use normal scheduling unless the combined path is separately qualified; reaching `run_until(T)` still processes its inclusive endpoint.
+- Required input changes have been consumed or conservatively cause an exit. `crossing_dirty` is per crossing/consumer and cleared only after the appropriate consumption; it is an optimization hint, never a substitute for subscriptions or an edge trigger.
+- All sampler commits, resets, primitive/process effects, observations and downstream reactions are implemented by the specialized path. If an async reaction cannot run there, exit to normal scheduling **at the same timestamp**, before another edge.
+- No required callback, harness response, process wakeup or ACT interaction is bypassed. New delayed output work, generated/gated clocks or pause/reset changes recompute the safe frontier before the next edge. Checking only preexisting input dirtiness is insufficient.
+- Work budgets/cancellation stop at the documented atomic boundary with all uncommitted staging and queues intact.
 
-1. Current-time work has settled and the selected clock batch precedes every competing delivery, external interaction, observation/callback deadline and run limit. Ties go through the normal scheduler unless their complete ordering has been qualified.
-2. All eligible samplers and downstream required effects/observations execute with normal sample/commit and phase semantics. Clock pause/reset generations remain effective.
-3. New output changes, delay scheduling, clock generation/gating or crossing activity update the safe frontier before another edge executes. Outgoing work can invalidate the window even if no crossing input changed.
-4. Budgets/cancellation stop at the same documented atomic boundaries, with resumable current-time state.
+Debug mode disables the loop for exact comparison. Queue bypass removes dispatch overhead; it does not skip hardware edges or async reactions. Measure its gain separately from GSIM-style inactive-logic skipping and bookkeeping reduction, which are the primary single-CPU-run hypotheses. Parallelism is a separate optimization.
 
-Run successive safe edge batches without inserting/removing managed edges in the general queue. This removes queue overhead; it does not skip logical edges, async reactions or observable work. Measure the gain separately from activity skipping. For a single CPU run, the primary GSIM-inspired hypothesis is eliminating inactive evaluations and unnecessary bookkeeping; parallelism is a separate optimization.
+## Crossings
+
+A crossing describes subscriptions between execution groups. Capture receipts, FIFOs and bridges are [chisel-async](../chisel-async.md) RTL or qualified bindings. Synchronizers follow their [primitive contracts](03-async-model-contracts.md#primitive-library). Each owns its circuit state; scheduling adds no buffer, synchronizer latency, acknowledgment or reordering.
+
+| Direction | Mechanism |
+| --- | --- |
+| Async → clocked | Signal changes notify subscribers/dirty hints; sampling occurs at the consumer's actual eligible edge. Sampling alone is not transaction acceptance |
+| Clocked → async | Commit changes activate async subscribers in the same physical timestamp under the normal phase rules. NBA re-entry can advance delta; crossing alone never adds one |
+| Clocked → clocked | Each domain follows its actual edges; normalized coincident sampling uses the batch rule, including generated-edge distinctions |
+| Async → async | Ordinary subscriptions and primitive/process ordering; explicit delay elements alone introduce their declared time obligations |
+
+`lookahead_fs` is a proven conservative lower bound, not measured average latency. Missing proof gives zero. Crossings, effects, callbacks and all other dependencies constrain parallel placement/batching. Zero lookahead requires coordination at the frontier or co-location; positive lookahead does not authorize ignoring an earlier obligation.
+
+The observation layer keeps **one transaction per channel**, joined by `boundary.link` at the actual transfer point. Visibility, acceptance and persistent effects may occur at different times. Kernels never read transaction state. The [graph/event contract](../graph-event-contract.md#crossing-a-clockedasync-boundary) and [worked hybrid fixture](../examples/hybrid-flow/README.md) retain their existing schemas.
+
+## Observation
+
+Scheduler/kernel helpers append commit records only at declared semantic points. Monitors consume that stream in order and derive protocol phase, epoch, ordinal and live-token state. The normalized flow stream comes from those commits, not a second simulation. Fixed-size headers may reference wide/variable payload arenas; fixed-size complete payloads are not assumed.
+
+For the **same executable plan**, toggling passive recording must not change simulated delivery counts/order, activation order or random choices. Recording-buffer allocation and host runtime may differ. Compiling a different observation policy may constrain optimization, change region fusion/layout and change internal work counts; required shared observations and circuit semantics still agree. Do not confuse these two comparisons.
+
+Required records are lossless: bounded streaming applies host backpressure or stops at an explicit resumable frontier/error. Reserve capacity before committing work whose required effects/observations cannot otherwise be retained. A host-capacity yield never creates a simulated delay. Circuit kernels cannot consume monitor state or log contents.
 
 ## CPU and GPU layouts
 
-| Storage | CPU baseline | GPU batch candidate |
+| Layout | Use | Storage |
 | --- | --- | --- |
-| Values and staging | Per-session contiguous aligned words | `values[word][lane]` and matching staging, adjacent lanes contiguous; pad to selected device subgroup width |
-| Activity | Per-session region bits and optional summary bitmap | Bitmasks across sessions such as `active[region][lane / W]`; qualified atomic/ballot ownership and reactivation rules |
-| Topology and kernels | Immutable shared model | Immutable shared topology, compiled kernels or another qualified device execution form |
-| Pending deliveries | Exact general heap plus managed clock calendar | Per-session bounded calendar/ring, heap or sorted-array experiment with exact timestamps and ordering |
-| Session identity | Stable run/case identity | Explicit lane-to-session map; all state, queues, counters and observations follow the session during compaction |
+| Session-major | CPU single run and CPU job batches | Per-session contiguous values/staging, memory arenas and scheduler |
+| Lane-contiguous | Optional CPU SIMD batch | `values[word][lane]` in vector-width blocks; a useful additional batch comparator when implemented |
+| Lane-contiguous device batch | Optional GPU | Shared topology/kernels, separate state and logical time per session |
 
-`values[word][lane]` is **lane-contiguous (lane-minor)** storage. Optional Boolean bitslicing is a separate kernel choice, with explicit arithmetic and memory handling; it is not implied by packing activation bits. Device subgroup width and alignment are backend parameters, not a universal 32-lane ABI. Adjacent accesses are the motivation for this candidate layout; measure actual access efficiency. [CUDA memory coalescing guidance](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#coalesced-access-to-global-memory).
+For a backend-selected subgroup width `W` and padded lane capacity `L`:
 
-A bounded calendar ring is an experiment, not an assumed fastest queue. It must retain exact timestamps/order within buckets, handle far-future events and ring wrap, and distinguish capacity exhaustion from time overflow. Buckets are an index, not a rounding of simulated time. Compare rings, heaps and small sorted arrays on sparse, bursty and widely separated events. Report enqueue/extract cost, memory, occupancy and spill frequency.
+```text
+values      [word][lane]             adjacent lanes contiguous
+next        [staged_word][lane]
+active      [region][ceil(L / W)]    subgroup-sized masks; 32-bit only where W = 32
+now         [lane]                  independent TimePoint
+pending     [slot][lane]             candidate coalesced event-field arrays
+queue_meta  [lane]                   independent ring/heap indices and capacity
+clock_cal   [clock][lane]
+rng_ctr     [counter][lane]
+lane_map    [lane] -> session        complete state follows this identity
+```
 
-Queue/payload/observation capacity is reserved before committing a work item that creates deliveries. Exhaustion yields at a recoverable frontier with all pending work intact, or fails explicitly. Host-assisted capacity growth/spill, if implemented, resumes the same device session through a tested protocol; it is not silent migration to CPU execution. A device fault still fails the affected run. Never drop an event or replay an already committed effect after overflow.
+This is **lane-minor**, not lane-major, array storage. Each session owns its logical queue, although event fields can be physically transposed across lanes for access efficiency. Compare that layout with per-lane arrays. Optional Boolean bitslicing is a separate kernel experiment, not implied by activation masks. Mask out padded lanes and define safe ownership/atomics for shared mask words. Device subgroup width is not a universal 32-lane ABI. [CUDA coalescing guidance](https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#coalesced-access-to-global-memory).
 
-Clocked batches with shared edge schedules are the strongest initial GPU candidate, but data-dependent logic, memory accesses and differing activity can still diverge. Async delay sweeps have independent logical times and event sequences. Regrouping by next-event time and compatible ready kernel may help, but must justify compaction cost and preserve each session's order, random keys and complete state. Equal times alone do not imply equal work. No independent run must advance merely to stay aligned with another lane.
+Two candidate execution modes are:
 
-For the small RISCay-MCU, prioritize aggregate runs over seeds/delays. Single-design GPU acceleration is an unproven later experiment; establish the crossover against CPU batches before claiming a benefit. Keep resident state and amortize launches/transfers where safe. CPU-only execution remains a complete MVP path.
+- **Shared-schedule windows:** eligible lanes use the same clock schedule with no lane-specific timing obligation in the window. This reduces scheduling divergence; data-dependent branches, memory accesses, activity and completion can still diverge. Exit/split lanes when eligibility changes.
+- **Independent-frontier windows:** each eligible lane advances to its own next obligation within its authorized budget. Async delay sweeps often use this mode. Regrouping by next-event time and compatible ready kernel is optional and measured; equal time alone does not imply equal work. No session advances to keep up with another lane.
+
+A bounded device ring/calendar is an experiment, not the default semantic contract. Preserve exact timestamps and order within buckets, far-future deliveries and wrap handling; bucket width must not quantize time. Compare a ring, heap and small sorted array on sparse/bursty/widely separated events. Preflight capacity for all event/payload/observation outputs of an atomic work item. If capacity is unavailable, yield with pending work intact or fail explicitly; never partially publish and then replay effects. Host-assisted growth/spill requires a tested same-session resume protocol, not silent migration to CPU execution. Device faults still fail affected runs.
+
+Compaction/regrouping moves values, memories, staging, queues, payload references, continuations, generations, epochs, counters and observations together. Stable session identity and RNG keys survive. Keep device state resident and amortize launch/transfer costs where safe. For the small RISCay-MCU, prioritize seed/delay batch throughput; single-design GPU benefit remains an unproven later experiment. CPU-only execution remains a complete MVP path.
 
 ## Performance claims and qualification
 
-The model permits activity-based clocked acceleration and GPU batch throughput; it establishes no speedup by itself. The **20× Verilator ambition** and the earlier **0.80× GSIM release gate** are distinct. Report single-run clocked speed, hybrid/async speed against a qualified timing baseline, and batch throughput separately under the [performance protocol](../test-plan.md#controlled-performance-experiments). Do not pool them into one ratio.
+The v1 clocked gate remains geometric-mean throughput faster than pinned Verilator and at least 0.80× the design-appropriate GSIM baseline on a frozen overlapping suite. **20× Verilator is a separate stretch ambition**, stated per workload/baseline and never inferred from the data model.
 
-These are planned implementation fixtures, not tests already satisfied by documentation checks:
+For context, GSIM reported 19.94× for Rocket/CoreMark and 7.34× for XiangShan/Linux against single-threaded Verilator 5.026. Those historical workloads/configurations do not establish a current baseline or a general size-dependent rule. [GSIM evaluation](https://arxiv.org/html/2508.02236v1).
 
-| Fixture | Expected evidence | Existing suite |
+| Claim | Baseline | Mechanisms to measure independently |
 | --- | --- | --- |
-| Dense IDs, invalid ranges and replicated logical identity | Loader rejects bad mappings; effects and observations remain exactly once | SEM-06, OPT-02 |
-| Duplicate pure activation versus same-tick req/ack pulse | Redundant reevaluation coalesces; sensitive state, triggers and required observations preserve each relevant transition | OPT-01, SEM-03, ASY-02 |
-| Coincident clocks, generated edges and mixed active/NBA work | Independent expected traces distinguish pre-update sampling from later generated-edge sampling | SEM-02/03 |
-| Transport/inertial, replaced waits and generation exhaustion | Captured payload preserved; only legally canceled work disappears; no wraparound resurrection | ASY-03, DUR-02 |
-| Queue-bypassed edges versus conservative scheduling | Exact required traces across event ties, outgoing delayed effects, callbacks, pause/reset, run limits and resume; assert bypass actually ran | SEM-02/03, OPT-02 |
-| Four-phase/Click bridges with paused/gated consumers | Actual RTL storage/capture and per-channel lineage; no synthetic clock, buffer or acknowledgement | ASY-02, FLOW-03 |
-| Monitor disabled/enabled and different batching | Same circuit values, effects and random decisions; scoped observation completeness | OPT-02, ASY-04 |
-| Device partial lanes, regrouping, ring wrap and overflow | Actual device/reference agreement; retained events and exactly-once effects across spill or explicit failure | Optional backend qualification |
+| Single-run clocked | Pinned single-threaded Verilator per design; disclose candidate threads and matched-resource results | Inactive evaluation skipping, supernode granularity, bookkeeping, clock-calendar bypass, width narrowing |
+| Single-run hybrid/async | Qualified engine/model/timing mode; name Verilator `--timing` when required and another comparator where feasible | Pure activations, ordered effects, timed queue cost, cancellation and payload handling |
+| Independent-run batch | Same cases against equivalent parallel CPU batches with disclosed resources; include CPU SIMD when qualified | Shared topology, lane-contiguous layout, batching, queue choice, regrouping, launches/transfers |
 
-Use the independent tiny evaluator and hand-authored traces before optimized-versus-conservative comparisons. Inject negative controls such as dropped same-tick pulses, premature register commit, stale generation delivery, queue overflow loss and RNG keyed by lane; require their intended checker to fail. Allocation/ABI assertions become required on each supported native/device target when concrete record layouts are implemented.
+Follow the [controlled experiment protocol](../test-plan.md#controlled-performance-experiments). A large ratio against one timing implementation is scoped to that comparator. Report batch throughput and per-case latency separately; do not label aggregate throughput as single-run acceleration.
 
-Implement in order: checked logical plan and CPU storage; independent scheduling fixtures; serial activations and ordered effects; guarded clock-calendar bypass; profiling/held-out activity policies; optional GPU queue/layout probes. This keeps clockless and hybrid semantics in the foundation while making optimization independently reviewable.
+### Runtime counters
+
+Counters have versioned definitions and scope: model/layout hash, session, observation policy, time window and enabled optimizations. Use checked integers; undefined ratios are null with a reason, never zero. Exact full-count profiles must reproduce for the same artifact/input/choices/scheduling policy. Cross-layout policies may legitimately do different internal work. Sampled/device performance estimates declare their method and uncertainty and are not exact semantic counters.
+
+| Counter | Definition and denominator |
+| --- | --- |
+| Delivery work | Scheduled, delivered and legally canceled occurrences by kind, separately from actual queue insert/extract operations. Managed calendar occurrences count even without heap allocation |
+| Events per edge | Delivered future obligations divided by delivered managed edge occurrences for the named clock scope; count rising/falling separately. Clockless scopes report raw totals or per-completed-transaction ratios, not a fabricated global edge count |
+| Activation work | Attempts, clean-to-pending changes, coalesced attempts and actual evaluations by region kind. Per-edge ratios declare clock scope; a coalesced request is not an evaluation |
+| Useful evaluation | Pure evaluations changing at least one required downstream dependency or observation divided by all pure evaluations. Report stateful/process work separately; no-output side effects are not classified as wasted |
+| Queue cost | Insert/extract/tombstone operations, live/max depth, spill/overflow/yield counts and payload bytes, by queue kind; operation time comes from separately labeled profiling |
+| Fast-path windows | Entered windows, edge batches per window, total executed edges and exits by reason; retain disabled/eligible-but-unused status |
+| Batch utilization | For a declared kernel/sample scope, useful active lane-work opportunities divided by issued lane capacity, with padded/retired lanes accounted for. Declare the sampling/weighting rule; include compaction, launch, synchronization and transfer cost |
+
+Instrumentation overhead is measured separately. Event/evaluation rates diagnose cost; performance conclusions require equal completed application work. [DM-06](../test-plan.md#execution-data-model-qualification) tests counter meaning as well as presence.
+
+## Open experiments
+
+| Question | Decision evidence |
+| --- | --- |
+| Binary heap versus calendar/ring or sorted array | Enqueue/extract cost, occupancy, tombstones and spill on MCU and delay sweeps; exact ordering remains fixed |
+| Compact event versus wider sequence/generation fields | Size/cache benefit versus long-run limits; compile native/device layout checks and near-overflow cases. Wider fields are the conservative choice when bounds are not established |
+| Inline payload width and arena reuse | Pinned corpus payload distribution, lifetime correctness, allocation and copying costs |
+| Region size and array layout | Held-out profiles and ablations by workload and region kind. GSIM found best maximum supernode sizes of 20–50 on its selected clocked designs; this is prior art, not an async default |
+| Divergent-lane regrouping | Useful work/utilization versus complete-state movement, changed queue locality and scheduling cost |
+| Arc state allocation reuse | M0 semantic/ABI experiment and checked mapping to backend bindings |
+| Event-key extension/rebasing | Preserve all live order/cancellation identities and replay under near-overflow tests; no renumbering scheme is assumed |
+
+The supernode-size result is from [GSIM section IV-E](https://arxiv.org/html/2508.02236v1). Device techniques require actual device evidence, not CPU fallback.
+
+## Validation and acceptance
+
+The loader rejects invalid widths/ranges, missing dependency coverage, unsupported writer conflicts, effectful pure kernels, inconsistent staging ownership, invalid wait/frame layouts, absent crossing derivations, positive lookahead claims without valid evidence, unsatisfiable observations and index/tag overflow. Missing lookahead proof normally means zero lookahead; a variant requiring a positive bound must reject it. Runtime checks catch exhausted order/generation counters and capacity limits before corruption. These extend SEM-06 and DUR-02.
+
+The named suites are registered in the [test plan](../test-plan.md#execution-data-model-qualification); they are planned implementation tests, not claims established by the current documentation checks.
+
+| ID | Required evidence |
+| --- | --- |
+| DM-01 Wake classification | Zero-delay fixture creates no internal future deliveries; adding one transport delay schedules one captured delivery per input transition. Closed gate creates no sampler occurrence. One managed edge dispatches any number of normalized zero-delay registers without per-register future entries; explicitly delayed writes retain timed deliveries. Same-tick pulses and repeated generated edges preserve required reactions |
+| DM-02 Fast-path equivalence | Full versus specialized execution across event ties, async input/output mid-window, callbacks, gated/paused clocks, reset, coincident/generated edges, inclusive limits and interior budget resume; identical required observations and proof that the fast path executed |
+| DM-03 Layout independence | Advertised native/SIMD/device layouts agree on values, effects, observations and keyed choices across partial batches, widths, lane compaction and regrouping; actual target ABI checks |
+| DM-04 Bounded queues | Queue/payload/log overflow, far-future ring wrap and same-bucket order preserve deliveries or fail explicitly; supported spill resumes without duplicate effects; compact-key and generation limits fail before wrap |
+| DM-05 Crossing transparency | Same-plan passive observation changes no circuit delivery/activation/choice; different observation plans preserve common semantic observations. No hidden storage/capture; per-channel lineage and actual bridge/reset ownership remain correct |
+| DM-06 Overhead accounting | Every declared counter has a fixture-derived value/denominator and reproducibility scope; idle/clockless/partial cases do not fabricate ratios. Profiling compiles and meaningful work is exercised |
+
+Also require SEM-02/03/06, OPT-01/02, ASY-01/02/03/04, DUR-02 and the relevant FLOW suites. [Optional backend qualification](../test-plan.md#optional-backend-qualification) applies only to advertised accelerator capabilities; optional layouts do not gate the CPU MVP. Compare hand-authored expected traces with the independent evaluator before optimized-versus-conservative agreement. Inject dropped pulses, premature commits, missed already-true waits, stale tokens, illegal compact-key wrap, overflow loss and lane-keyed RNG; require the intended checker to fail.
+
+Implement in order: logical plan and CPU storage; independent scheduling fixtures; current-time activations and ordered effects; guarded clock-calendar bypass; profiling/held-out policies; optional SIMD/GPU queue/layout probes. Physical implementation remains a separate step 4 responsibility.

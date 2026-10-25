@@ -9,7 +9,7 @@ Draft contracts, integration status updated October 20; execution data model add
 | [Async model contracts](03-async-model-contracts.md) | Primitives, channels, timing and the MCU example | Async/runtime |
 | [Application lifecycle](04-application-lifecycle.md) | Sessions, jobs, CLI, adapters, MCP and native packaging | Application/integration |
 | [Artifacts and compatibility](05-artifacts-compatibility.md) | Schemas, cache, reports, replay and release evidence | Integration/release |
-| [Execution data model](06-execution-data-model.md) | Plan/session tables, activations versus deliveries, clock-calendar fast paths and CPU/GPU layout experiments | Runtime/compiler |
+| [Execution data model](06-execution-data-model.md) | Plan/session structures, ordered work and activations, compact-event limits, clocked fast paths, CPU/SIMD/GPU layouts and DM-01–06 qualification | Runtime/compiler |
 
 “Must” denotes a proposed release requirement, not a claim of current support. Owners are engineering roles; assign maintainers when implementation starts. Existing requirement and suite IDs refer to the [MVP list](../mvp-feature-list.md) and [test plan](../test-plan.md).
 
